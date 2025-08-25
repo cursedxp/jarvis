@@ -12,6 +12,8 @@ interface FloatingWindowProps {
   defaultHeight?: number
   defaultX?: number
   defaultY?: number
+  zIndex?: number
+  onFocus?: () => void
 }
 
 export function FloatingWindow({
@@ -22,7 +24,9 @@ export function FloatingWindow({
   defaultWidth = 400,
   defaultHeight = 600,
   defaultX,
-  defaultY
+  defaultY,
+  zIndex = 40,
+  onFocus
 }: FloatingWindowProps) {
   const [position, setPosition] = useState({ 
     x: defaultX ?? 0, 
@@ -100,13 +104,15 @@ export function FloatingWindow({
   return (
     <div
       ref={windowRef}
-      className="fixed z-40 bg-gray-900 border border-cyan-500/30 rounded-lg shadow-2xl flex flex-col"
+      className="fixed bg-gray-900 border border-cyan-500/30 rounded-lg shadow-2xl flex flex-col"
       style={{
         left: `${position.x}px`,
         top: `${position.y}px`,
         width: `${size.width}px`,
-        height: `${size.height}px`
+        height: `${size.height}px`,
+        zIndex: zIndex
       }}
+      onClick={onFocus}
     >
       {/* Header - Draggable */}
       <div 

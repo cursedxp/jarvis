@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { Settings, History, Calendar } from "lucide-react";
 import dynamic from 'next/dynamic';
@@ -10,6 +10,7 @@ import { AnimatedBlob } from './AnimatedBlob';
 import { VoiceControls } from './VoiceControls';
 import { SettingsDialog } from './SettingsDialog';
 import { ChatHistory } from './ChatHistory';
+import { PomodoroWidget, PomodoroWidgetRef } from './PomodoroWidget';
 
 // Custom hooks
 import { useVoiceRecognition } from '@/hooks/useVoiceRecognition';
@@ -31,6 +32,14 @@ export function JarvisMainContainer() {
   const [showPlanningApp, setShowPlanningApp] = useState(false);
   const [showKanbanApp, setShowKanbanApp] = useState(false);
   const [isVoiceEnabled, setIsVoiceEnabled] = useState(false);
+  
+  // Window Management
+  const [windowZIndices, setWindowZIndices] = useState({ planning: 40, kanban: 41 });
+  const [nextZIndex, setNextZIndex] = useState(42);
+  
+  // Pomodoro State
+  const [isAwaitingPomodoroConfirmation, setIsAwaitingPomodoroConfirmation] = useState(false);
+  const pomodoroWidgetRef = useRef<PomodoroWidgetRef>(null);
   
   // Voice/TTS State
   const [voice, setVoice] = useState('Alex');
@@ -81,7 +90,46 @@ export function JarvisMainContainer() {
   const { socket, isConnected } = useSocketIO({
     onAudioStarting,
     onAudioFinished,
-    onAudioStopped
+    onAudioStopped,
+    onPomodoroCommand: (data) => {
+      console.log('🍅 Received pomodoro command:', data.action);
+      if (data.action === 'start') {
+        pomodoroWidgetRef.current?.startTimer();
+      } else if (data.action === 'stop') {
+        pomodoroWidgetRef.current?.pauseTimer();
+      } else if (data.action === 'reset') {
+        pomodoroWidgetRef.current?.resetTimer();
+      }
+    },
+    onPomodoroPhaseComplete: (data) => {
+      console.log('🍅 Received pomodoro phase complete:', data);
+      
+      // Make TTS announcement
+      speakText(data.message);
+      
+      if (data.nextPhase === 'prompt') {
+        // After break, wait for user response to continue
+        setIsAwaitingPomodoroConfirmation(true);
+      }
+    },
+    onPomodoroSync: (data) => {
+      console.log('🍅 FRONTEND: Received pomodoro sync:', data);
+      
+      // Sync the frontend widget with backend service state
+      if (data.action === 'start_work' && data.duration) {
+        console.log(`🍅 FRONTEND: Starting timer with ${data.duration} minutes`);
+        // Start work session in widget with the correct duration
+        pomodoroWidgetRef.current?.startTimer(data.duration);
+      } else if (data.action === 'start_break' && data.duration) {
+        console.log('🍅 FRONTEND: Break started, maintaining widget state');
+        // Widget doesn't need to show break timer - that's handled conversationally
+        // Just keep the widget in its current state showing the break phase
+      } else if (data.action === 'stop') {
+        console.log('🍅 FRONTEND: Stopping/resetting timer');
+        // Reset widget to idle
+        pomodoroWidgetRef.current?.resetTimer();
+      }
+    }
   });
 
   // API hook
@@ -156,6 +204,28 @@ export function JarvisMainContainer() {
   // Send message handler
   const sendMessage = async (text: string, isVoiceInput: boolean = false) => {
     if (!text.trim()) return;
+    
+    // Handle Pomodoro confirmation if waiting for response
+    if (isAwaitingPomodoroConfirmation && isVoiceInput) {
+      const lowerText = text.toLowerCase().trim();
+      if (lowerText.includes('yes') || lowerText.includes('continue') || lowerText.includes('sure') || lowerText.includes('start')) {
+        console.log('🍅 User confirmed to continue Pomodoro via voice');
+        // Send continue message to backend to start new session
+        try {
+          const result = await apiSendMessage('continue pomodoro', false, getCurrentMessages());
+          speakText('Starting your next Pomodoro session!');
+        } catch (error) {
+          console.error('Failed to continue Pomodoro:', error);
+        }
+        setIsAwaitingPomodoroConfirmation(false);
+        return;
+      } else if (lowerText.includes('no') || lowerText.includes('stop') || lowerText.includes('cancel')) {
+        console.log('🍅 User declined to continue Pomodoro via voice');
+        speakText('Pomodoro session ended. Great work!');
+        setIsAwaitingPomodoroConfirmation(false);
+        return;
+      }
+    }
     
     if (!activeConversation) {
       createNewConversation();
@@ -261,6 +331,15 @@ export function JarvisMainContainer() {
     setSettingsOpen(false);
   };
 
+  // Window management handlers
+  const bringWindowToFront = (windowId: 'planning' | 'kanban') => {
+    setWindowZIndices(prev => ({
+      ...prev,
+      [windowId]: nextZIndex
+    }));
+    setNextZIndex(prev => prev + 1);
+  };
+
   return (
     <div className="relative h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black overflow-hidden">
       
@@ -338,13 +417,37 @@ export function JarvisMainContainer() {
           onStopTTS={handleStopTTS}
         />
 
+        {/* Pomodoro Widget - Bottom Right (Left of App Buttons) */}
+        <div className="absolute bottom-6 right-24 z-30">
+          <PomodoroWidget 
+            ref={pomodoroWidgetRef}
+            onBreakStart={() => {
+              console.log('🍅 Break time started');
+              speakText("Time for a 5-minute break!");
+            }}
+            onPromptContinue={() => {
+              console.log('🍅 Prompting to continue Pomodoro');
+              speakText("Ready to continue your Pomodoro session? Say yes to continue or no to stop.");
+              setIsAwaitingPomodoroConfirmation(true);
+            }}
+            onContinueYes={() => {
+              console.log('🍅 User chose to continue via UI');
+              setIsAwaitingPomodoroConfirmation(false);
+            }}
+            onContinueNo={() => {
+              console.log('🍅 User chose to stop via UI');
+              setIsAwaitingPomodoroConfirmation(false);
+            }}
+          />
+        </div>
+
         {/* App Buttons - Bottom Right */}
         <div className="absolute bottom-6 right-6 z-30 flex flex-col gap-3">
           <Button
             onClick={() => setShowKanbanApp(!showKanbanApp)}
             variant="ghost"
             size="sm"
-            className="text-cyan-400 hover:text-cyan-400 hover:bg-cyan-500/10 cursor-pointer p-3 rounded-full"
+            className="text-cyan-400 hover:text-cyan-400 hover:bg-cyan-500/10 cursor-pointer p-3"
             title="Kanban Board"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -355,7 +458,7 @@ export function JarvisMainContainer() {
             onClick={() => setShowPlanningApp(!showPlanningApp)}
             variant="ghost"
             size="sm"
-            className="text-cyan-400 hover:text-cyan-400 hover:bg-cyan-500/10 cursor-pointer p-3 rounded-full"
+            className="text-cyan-400 hover:text-cyan-400 hover:bg-cyan-500/10 cursor-pointer p-3"
             title="Planning App"
           >
             <Calendar className="w-5 h-5" />
@@ -369,6 +472,8 @@ export function JarvisMainContainer() {
           title="Planning App"
           defaultWidth={800}
           defaultHeight={600}
+          zIndex={windowZIndices.planning}
+          onFocus={() => bringWindowToFront('planning')}
         >
           <iframe
             src="/planning"
@@ -384,6 +489,8 @@ export function JarvisMainContainer() {
           title="Kanban Board"
           defaultWidth={1200}
           defaultHeight={800}
+          zIndex={windowZIndices.kanban}
+          onFocus={() => bringWindowToFront('kanban')}
         >
           <iframe
             src="/kanban"
