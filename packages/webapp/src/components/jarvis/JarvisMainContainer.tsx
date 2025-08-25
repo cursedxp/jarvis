@@ -11,6 +11,7 @@ import { VoiceControls } from './VoiceControls';
 import { SettingsDialog } from './SettingsDialog';
 import { ChatHistory } from './ChatHistory';
 import { PomodoroWidget, PomodoroWidgetRef } from './PomodoroWidget';
+import SpotifyPlayer from '../SpotifyPlayer';
 
 // Custom hooks
 import { useVoiceRecognition } from '@/hooks/useVoiceRecognition';
@@ -40,6 +41,12 @@ export function JarvisMainContainer() {
   // Pomodoro State
   const [isAwaitingPomodoroConfirmation, setIsAwaitingPomodoroConfirmation] = useState(false);
   const pomodoroWidgetRef = useRef<PomodoroWidgetRef>(null);
+  
+  // Spotify State
+  const [spotifyConnected, setSpotifyConnected] = useState(false);
+  
+  // Widget visibility
+  const [showWidgets, setShowWidgets] = useState(true);
   
   // Voice/TTS State
   const [voice, setVoice] = useState('Alex');
@@ -86,7 +93,7 @@ export function JarvisMainContainer() {
     stopAudioLevelSimulation();
   }, [stopAudioLevelSimulation]);
 
-  // Socket.IO hook
+  // Socket.IO hook  
   const { socket, isConnected } = useSocketIO({
     onAudioStarting,
     onAudioFinished,
@@ -129,6 +136,10 @@ export function JarvisMainContainer() {
         // Reset widget to idle
         pomodoroWidgetRef.current?.resetTimer();
       }
+    },
+    onMusicStateUpdate: (data) => {
+      console.log('🎵 Received music state update:', data);
+      handleSpotifyStateUpdate(data);
     }
   });
 
@@ -189,7 +200,20 @@ export function JarvisMainContainer() {
   useEffect(() => {
     loadConversations();
     loadAndSetAvailableVoices();
+    checkSpotifyConnection();
   }, [ttsMode]);
+
+  // Check Spotify connection status
+  const checkSpotifyConnection = async () => {
+    try {
+      const response = await fetch('http://localhost:7777/spotify/status');
+      const data = await response.json();
+      setSpotifyConnected(data.success && data.connected && !data.expired);
+    } catch (error) {
+      console.error('Failed to check Spotify connection:', error);
+      setSpotifyConnected(false);
+    }
+  };
 
   // Load available voices and update state
   const loadAndSetAvailableVoices = async () => {
@@ -340,8 +364,39 @@ export function JarvisMainContainer() {
     setNextZIndex(prev => prev + 1);
   };
 
+  // Spotify handlers
+  const handleSpotifyConnect = async () => {
+    try {
+      const response = await fetch('http://localhost:7777/auth/spotify');
+      const data = await response.json();
+      
+      if (data.success && data.authUrl) {
+        // Open Spotify auth in new window
+        window.open(data.authUrl, 'spotify-auth', 'width=600,height=700');
+        
+        // Check connection status periodically
+        const checkConnection = setInterval(async () => {
+          await checkSpotifyConnection();
+          if (spotifyConnected) {
+            clearInterval(checkConnection);
+          }
+        }, 2000);
+        
+        // Clear interval after 60 seconds
+        setTimeout(() => clearInterval(checkConnection), 60000);
+      }
+    } catch (error) {
+      console.error('Failed to initiate Spotify connection:', error);
+    }
+  };
+
+  const handleSpotifyStateUpdate = (data: any) => {
+    // Handle real-time music state updates from Socket.IO
+    console.log('🎵 Music state update received:', data);
+  };
+
   return (
-    <div className="relative h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black overflow-hidden">
+    <div className="relative h-screen bg-background overflow-hidden">
       
       {/* Chat History */}
       <ChatHistory 
@@ -353,34 +408,18 @@ export function JarvisMainContainer() {
 
       {/* Main Interface */}
       <div className="flex flex-col h-full">
-        {/* Control Buttons - Top */}
-        <div className="absolute top-6 left-6 right-6 flex justify-between items-center z-30">
-          <div className="flex items-center gap-2">
-            <Button
-              onClick={() => setShowChatHistory(!showChatHistory)}
-              variant="ghost"
-              size="sm"
-              className="text-cyan-400 hover:text-cyan-400 hover:bg-cyan-500/10 cursor-pointer p-2"
-            >
-              <History className="w-4 h-4" />
-            </Button>
-            
-            <Button
-              onClick={() => setSettingsOpen(true)}
-              variant="ghost"
-              size="sm"
-              className="text-cyan-400 hover:text-cyan-400 hover:bg-cyan-500/10 cursor-pointer p-2"
-            >
-              <Settings className="w-4 h-4" />
-            </Button>
-            
-            {/* Model Indicator */}
-            {detectedTaskType && (
-              <div className="text-xs bg-cyan-500/20 text-cyan-300 px-2 py-1 rounded">
-                {detectedTaskType.toUpperCase()} MODE
-              </div>
-            )}
-          </div>
+        {/* Model Indicator - Top Left */}
+        <div className="absolute top-6 left-6 z-30 flex items-center gap-2">
+          {/* Model Indicator */}
+          {detectedTaskType && (
+            <div className="text-xs bg-cyan-500/20 text-cyan-300 px-2 py-1 rounded-xl">
+              {detectedTaskType.toUpperCase()} MODE
+            </div>
+          )}
+        </div>
+
+        {/* Settings Dialog - Keep position for dialog */}
+        <div className="absolute top-6 right-6 z-30">
           
           <SettingsDialog 
             isOpen={settingsOpen}
@@ -417,8 +456,34 @@ export function JarvisMainContainer() {
           onStopTTS={handleStopTTS}
         />
 
-        {/* Pomodoro Widget - Bottom Right (Left of App Buttons) */}
-        <div className="absolute bottom-6 right-24 z-30">
+        {/* Widget Toggle Button - Top Center */}
+        <div className="absolute top-0 left-1/2 transform -translate-x-1/2 z-30">
+          <button
+            onClick={() => setShowWidgets(!showWidgets)}
+            className="bg-card/20 backdrop-blur-sm text-foreground 
+                       rounded-xl px-4 py-1 transition-all duration-200 hover:bg-card/30
+                       shadow-lg hover:shadow-xl cursor-pointer"
+            title={showWidgets ? "Hide Widgets" : "Show Widgets"}
+          >
+            <div className="w-6 h-0.5 bg-foreground rounded-full mx-auto"></div>
+          </button>
+        </div>
+
+        {/* Widget Container - Top Center */}
+        <div className={`absolute top-12 left-1/2 transform -translate-x-1/2 z-30 flex gap-4 items-center justify-center
+                        transition-all duration-500 ease-in-out
+                        ${showWidgets 
+                          ? 'opacity-100 translate-y-0 scale-100' 
+                          : 'opacity-0 -translate-y-4 scale-95 pointer-events-none'
+                        }`}>
+          {/* Spotify Player Widget */}
+          <SpotifyPlayer 
+            isConnected={spotifyConnected}
+            onConnect={handleSpotifyConnect}
+            onMusicStateUpdate={handleSpotifyStateUpdate}
+          />
+          
+          {/* Pomodoro Widget */}
           <PomodoroWidget 
             ref={pomodoroWidgetRef}
             onBreakStart={() => {
@@ -447,7 +512,7 @@ export function JarvisMainContainer() {
             onClick={() => setShowKanbanApp(!showKanbanApp)}
             variant="ghost"
             size="sm"
-            className="text-cyan-400 hover:text-cyan-400 hover:bg-cyan-500/10 cursor-pointer p-3"
+            className="text-foreground hover:text-foreground hover:bg-accent cursor-pointer p-3"
             title="Kanban Board"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -458,10 +523,28 @@ export function JarvisMainContainer() {
             onClick={() => setShowPlanningApp(!showPlanningApp)}
             variant="ghost"
             size="sm"
-            className="text-cyan-400 hover:text-cyan-400 hover:bg-cyan-500/10 cursor-pointer p-3"
+            className="text-foreground hover:text-foreground hover:bg-accent cursor-pointer p-3"
             title="Planning App"
           >
             <Calendar className="w-5 h-5" />
+          </Button>
+          <Button
+            onClick={() => setShowChatHistory(!showChatHistory)}
+            variant="ghost"
+            size="sm"
+            className="text-foreground hover:text-foreground hover:bg-accent cursor-pointer p-3"
+            title="Chat History"
+          >
+            <History className="w-5 h-5" />
+          </Button>
+          <Button
+            onClick={() => setSettingsOpen(true)}
+            variant="ghost"
+            size="sm"
+            className="text-foreground hover:text-foreground hover:bg-accent cursor-pointer p-3"
+            title="Settings"
+          >
+            <Settings className="w-5 h-5" />
           </Button>
         </div>
 

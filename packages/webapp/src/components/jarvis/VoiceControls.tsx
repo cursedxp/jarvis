@@ -27,9 +27,9 @@ export function VoiceControls({
     <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 flex flex-col items-center space-y-4">
       {/* Voice Transcript Display */}
       {voiceTranscript && (
-        <div className="bg-black/50 backdrop-blur-sm rounded-lg px-4 py-2 max-w-md text-center border border-cyan-500/20">
-          <div className="text-xs text-cyan-400 mb-1">You're saying:</div>
-          <div className="text-white/90 text-sm">{voiceTranscript}</div>
+        <div className="bg-card/50 backdrop-blur-sm rounded-xl px-4 py-2 max-w-md text-center border border-border">
+          <div className="text-xs text-muted-foreground mb-1">You're saying:</div>
+          <div className="text-foreground text-sm">{voiceTranscript}</div>
         </div>
       )}
       
@@ -40,7 +40,8 @@ export function VoiceControls({
           <Button
             onClick={onStopTTS}
             size="lg"
-            className="bg-red-600 hover:bg-red-700 text-white px-8 py-4 rounded-full shadow-lg cursor-pointer"
+            variant="destructive"
+            className="px-8 py-4 rounded-full shadow-lg cursor-pointer"
           >
             <Square className="w-5 h-5 mr-2" />
             Stop Speaking
@@ -55,11 +56,8 @@ export function VoiceControls({
           <Button
             onClick={isVoiceEnabled ? onStopVoice : onStartVoice}
             size="lg"
-            className={`px-8 py-4 rounded-full shadow-lg transition-all duration-200 cursor-pointer ${
-              isVoiceEnabled 
-                ? 'bg-red-600 hover:bg-red-700 text-white' 
-                : 'bg-cyan-500 hover:bg-cyan-600 text-black'
-            }`}
+            variant={isVoiceEnabled ? 'destructive' : 'default'}
+            className="px-8 py-4 rounded-full shadow-lg transition-all duration-200 cursor-pointer"
           >
             {isVoiceEnabled ? (
               <>
