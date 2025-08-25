@@ -107,6 +107,68 @@ export class PlanningIntegration {
     }
   }
 
+  async deleteTask(taskId: string): Promise<boolean> {
+    try {
+      const response = await fetch(`${this.baseUrl}/today?taskId=${taskId}`, {
+        method: 'DELETE'
+      });
+      return response.ok;
+    } catch (error) {
+      console.error('Failed to delete task:', error);
+      return false;
+    }
+  }
+
+  async deleteAllTasks(): Promise<boolean> {
+    try {
+      const plan = await this.getTodaysPlan();
+      if (!plan || plan.tasks.length === 0) {
+        return true; // No tasks to delete
+      }
+
+      // Delete all tasks one by one
+      const deletePromises = plan.tasks.map(task => this.deleteTask(task.id));
+      const results = await Promise.all(deletePromises);
+      
+      // Return true if all deletions were successful
+      return results.every(result => result);
+    } catch (error) {
+      console.error('Failed to delete all tasks:', error);
+      return false;
+    }
+  }
+
+  async deleteTasksByPattern(pattern: string): Promise<{ deleted: number; failed: number }> {
+    try {
+      const plan = await this.getTodaysPlan();
+      if (!plan || plan.tasks.length === 0) {
+        return { deleted: 0, failed: 0 };
+      }
+
+      const patternLower = pattern.toLowerCase();
+      const matchingTasks = plan.tasks.filter(task => 
+        task.title.toLowerCase().includes(patternLower) ||
+        (task.description && task.description.toLowerCase().includes(patternLower))
+      );
+
+      if (matchingTasks.length === 0) {
+        return { deleted: 0, failed: 0 };
+      }
+
+      // Delete matching tasks
+      const deletePromises = matchingTasks.map(task => this.deleteTask(task.id));
+      const results = await Promise.all(deletePromises);
+      
+      const deleted = results.filter(result => result).length;
+      const failed = results.length - deleted;
+
+      return { deleted, failed };
+    } catch (error) {
+      console.error('Failed to delete tasks by pattern:', error);
+      return { deleted: 0, failed: 0 };
+    }
+  }
+
   // Weekly operations
   async getWeeklyStats(date?: Date): Promise<WeeklyStats | null> {
     try {
@@ -185,6 +247,7 @@ export class PlanningIntegration {
     const planningKeywords = [
       'task', 'todo', 'plan', 'schedule', 'goal', 'reminder',
       'add', 'create', 'make', 'set', 'complete', 'finish',
+      'delete', 'remove', 'clear', 'cancel',
       'today', 'tomorrow', 'week', 'daily'
     ];
     
