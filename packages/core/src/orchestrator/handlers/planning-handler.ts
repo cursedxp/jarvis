@@ -198,7 +198,7 @@ export class PlanningHandler extends BaseHandler {
             }
           }
           break;
-          
+
         case 'DELETE_ALL_TASKS':
           console.log('✅ AI HANDLER: Deleting ALL tasks...');
           const result = await mongodbPlanningService.deleteAllTasks();

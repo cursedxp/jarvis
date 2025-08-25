@@ -5,6 +5,7 @@ import { KnowledgeBase } from '../services/knowledge-base';
 import { FineTuningManager } from '../services/fine-tuning';
 import { planningService } from '../services/planning-integration';
 import { PlanningHandler } from './handlers/planning-handler';
+import { PomodoroHandler } from './handlers/pomodoro-handler';
 
 export class CommandHandler {
   private orchestrator: Orchestrator;
@@ -13,6 +14,7 @@ export class CommandHandler {
   private knowledgeBase: KnowledgeBase;
   private fineTuningManager: FineTuningManager;
   private planningHandler: PlanningHandler;
+  private pomodoroHandler: PomodoroHandler;
   private io?: any;
   
   constructor(orchestrator: Orchestrator, io?: any) {
@@ -22,6 +24,7 @@ export class CommandHandler {
     this.knowledgeBase = new KnowledgeBase();
     this.fineTuningManager = new FineTuningManager();
     this.planningHandler = new PlanningHandler(orchestrator, io);
+    this.pomodoroHandler = new PomodoroHandler(orchestrator, io);
     this.io = io;
     console.log('📡 COMMAND HANDLER: Initialized with Socket.IO instance:', !!io);
     this.registerHandlers();
@@ -34,6 +37,7 @@ export class CommandHandler {
     this.handlers.set('install', this.handleInstall.bind(this));
     this.handlers.set('chat', this.handleChat.bind(this));
     this.handlers.set('planning', this.handlePlanningDirect.bind(this));
+    this.handlers.set('pomodoro', this.handlePomodoroDirect.bind(this));
     this.handlers.set('switchModel', this.handleSwitchModel.bind(this));
     this.handlers.set('listModels', this.handleListModels.bind(this));
     this.handlers.set('getCurrentModel', this.handleGetCurrentModel.bind(this));
@@ -116,8 +120,27 @@ export class CommandHandler {
   private async handleChat(command: Command): Promise<any> {
     const { message, conversationHistory } = command.payload;
     
-    // Check for planning commands first - use new planning handler directly
+    // Check for pomodoro commands first
     const lowerMessage = message.toLowerCase();
+    const pomodoroKeywords = [
+      'pomodoro', 'timer', 'focus', 'work session', 'break',
+      'start pomodoro', 'stop pomodoro', 'pause pomodoro'
+    ];
+    
+    // Check if this could be a Pomodoro duration response (simple number)
+    const isPossibleDuration = /^(\d+)(\s*(min|minutes?|hour|hours?|hrs?))?$/i.test(message.trim());
+    
+    const isPomodoroRelated = pomodoroKeywords.some(keyword => lowerMessage.includes(keyword)) || isPossibleDuration;
+    
+    if (isPomodoroRelated) {
+      console.log('🍅 Chat handler: Routing to POMODORO HANDLER');
+      return await this.pomodoroHandler.handle({
+        type: 'pomodoro',
+        payload: { message }
+      });
+    }
+    
+    // Check for planning commands - use planning handler
     const planningKeywords = [
       'task', 'todo', 'plan', 'schedule', 'goal', 'reminder',
       'add', 'create', 'make', 'set', 'complete', 'finish',
@@ -128,7 +151,7 @@ export class CommandHandler {
     const isPlanningRelated = planningKeywords.some(keyword => lowerMessage.includes(keyword));
     
     if (isPlanningRelated) {
-      console.log('🚀 Chat handler: Routing to NEW PLANNING HANDLER');
+      console.log('🚀 Chat handler: Routing to PLANNING HANDLER');
       return await this.planningHandler.handle({
         type: 'planning',
         payload: { message }
@@ -400,8 +423,13 @@ export class CommandHandler {
   }
 
   private async handlePlanningDirect(command: Command): Promise<any> {
-    console.log('🚀 NEW PLANNING HANDLER: Command received in CommandHandler');
+    console.log('🚀 PLANNING HANDLER: Command received in CommandHandler');
     return await this.planningHandler.handle(command);
+  }
+
+  private async handlePomodoroDirect(command: Command): Promise<any> {
+    console.log('🍅 POMODORO HANDLER: Command received in CommandHandler');
+    return await this.pomodoroHandler.handle(command);
   }
 
   private async handleStopTraining(): Promise<any> {
