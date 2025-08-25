@@ -63,7 +63,11 @@ export function useVoiceRecognition({ onTranscript, onStateChange }: UseVoiceRec
       }
       
       recognitionInstance.onerror = (event: any) => {
-        console.error('Speech recognition error:', event.error)
+        // "no-speech" is a common, non-critical error that happens when no speech is detected
+        // Only log actual errors, not normal timeout events
+        if (event.error !== 'no-speech') {
+          console.error('Speech recognition error:', event.error)
+        }
         setIsListening(false)
         onStateChangeRef.current('idle')
       }
