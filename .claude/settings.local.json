@@ -72,7 +72,8 @@
       "Bash(mongosh:*)",
       "Bash(open http://localhost:3000/planning)",
       "WebSearch",
-      "Bash(open http://localhost:3000/kanban)"
+      "Bash(open http://localhost:3000/kanban)",
+      "Bash(echo \"\nStarting pomodoro...\")"
     ],
     "deny": [],
     "ask": [],
