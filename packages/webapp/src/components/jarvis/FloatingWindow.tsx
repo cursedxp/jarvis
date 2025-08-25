@@ -104,7 +104,7 @@ export function FloatingWindow({
   return (
     <div
       ref={windowRef}
-      className="fixed bg-gray-900 border border-cyan-500/30 rounded-lg shadow-2xl flex flex-col"
+      className="fixed bg-popover border border-border rounded-xl shadow-2xl flex flex-col"
       style={{
         left: `${position.x}px`,
         top: `${position.y}px`,
@@ -116,15 +116,15 @@ export function FloatingWindow({
     >
       {/* Header - Draggable */}
       <div 
-        className="flex items-center justify-between p-3 border-b border-cyan-500/20 bg-gray-800/50 cursor-move select-none"
+        className="flex items-center justify-between p-3 border-b border-border bg-card/50 cursor-move select-none"
         onMouseDown={handleMouseDown}
       >
-        <h2 className="text-cyan-400 font-semibold text-sm">{title}</h2>
+        <h2 className="text-foreground font-semibold text-sm">{title}</h2>
         <Button
           onClick={onClose}
           variant="ghost"
           size="sm"
-          className="text-cyan-400 hover:text-cyan-400 hover:bg-cyan-500/10 p-1 h-6 w-6"
+          className="text-muted-foreground hover:text-foreground hover:bg-accent p-1 h-6 w-6"
         >
           ×
         </Button>

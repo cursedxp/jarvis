@@ -100,23 +100,28 @@ export const PomodoroWidget = forwardRef<PomodoroWidgetRef, PomodoroWidgetProps>
       onMouseLeave={() => setIsHovered(false)}
       onClick={handleClick}
     >
-      {/* Main circular widget */}
+      {/* Main square widget */}
       <div 
-        className={`relative w-20 h-20 rounded-lg border-2 ${colors.border} ${colors.bg} 
-                   backdrop-blur-sm transition-all duration-200 hover:scale-105 
+        className={`relative w-32 h-32 rounded-xl bg-card/80 backdrop-blur-sm 
+                   transition-all duration-200 hover:scale-105 
                    flex items-center justify-center shadow-lg hover:shadow-xl`}
       >
 
         {/* Content */}
-        <div className="flex flex-col items-center justify-center z-10">
+        <div className="flex flex-col items-center justify-center z-10 text-foreground">
           {phase === 'idle' ? (
-            <Play className={`w-6 h-6 ${colors.text}`} />
+            <div className="text-center">
+              <Play className="w-8 h-8 text-foreground mb-2" />
+              <div className="text-sm text-foreground opacity-80">
+                Start Pomodoro
+              </div>
+            </div>
           ) : (
             <div className="text-center">
-              <div className={`text-xs font-mono ${colors.text} leading-tight`}>
+              <div className="text-lg font-mono text-foreground leading-tight mb-1">
                 {formattedTime}
               </div>
-              <div className={`text-[8px] ${colors.text} opacity-60 uppercase tracking-wide`}>
+              <div className="text-xs text-foreground opacity-60 uppercase tracking-wide">
                 {phase}
               </div>
             </div>
@@ -130,20 +135,20 @@ export const PomodoroWidget = forwardRef<PomodoroWidgetRef, PomodoroWidgetProps>
               onClick={handleReset}
               variant="ghost"
               size="sm"
-              className={`w-6 h-6 p-0 ${colors.bg} ${colors.border} border 
-                         hover:scale-110 transition-all duration-200`}
+              className="w-6 h-6 p-0 bg-card/20 text-foreground
+                         hover:scale-110 transition-all duration-200"
               title="Reset Timer"
             >
-              <RotateCcw className={`w-3 h-3 ${colors.text}`} />
+              <RotateCcw className="w-3 h-3 text-foreground" />
             </Button>
           </div>
         )}
 
         {/* Running indicator */}
         {isRunning && (
-          <div className={`absolute -bottom-1 -right-1 w-3 h-3 ${colors.bg} 
-                          rounded-full animate-pulse`}>
-            <div className={`w-full h-full bg-current ${colors.text} rounded-full animate-ping`} />
+          <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500/20 
+                          rounded-full animate-pulse">
+            <div className="w-full h-full bg-green-500 rounded-full animate-ping" />
           </div>
         )}
       </div>
@@ -158,7 +163,7 @@ export const PomodoroWidget = forwardRef<PomodoroWidgetRef, PomodoroWidgetProps>
       {showContinuePrompt && (
         <div className="absolute -top-16 left-1/2 transform -translate-x-1/2 
                         bg-gray-900/95 backdrop-blur-sm border border-cyan-500/30 
-                        rounded-lg p-3 shadow-xl z-50 min-w-max">
+                        rounded-xl p-3 shadow-xl z-50 min-w-max">
           <div className="text-xs text-cyan-400 mb-2 text-center">
             Continue Pomodoro?
           </div>
