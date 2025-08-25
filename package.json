@@ -39,8 +39,14 @@
     "*.{json,md,yml,yaml}": [
       "prettier --write"
     ],
-    "*.ts": [
-      "tsc --noEmit"
+    "packages/core/**/*.ts": [
+      "bash -c 'cd packages/core && npx tsc --noEmit'"
+    ],
+    "packages/webapp/**/*.{ts,tsx}": [
+      "bash -c 'cd packages/webapp && npx tsc --noEmit'"
+    ],
+    "packages/shared/**/*.ts": [
+      "bash -c 'cd packages/shared && npx tsc --noEmit'"
     ]
   }
 }
