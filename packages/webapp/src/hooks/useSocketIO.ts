@@ -7,12 +7,18 @@ interface UseSocketIOProps {
   onAudioStarting?: (data: any) => void;
   onAudioFinished?: (data: any) => void;
   onAudioStopped?: (data: any) => void;
+  onPomodoroCommand?: (data: { action: 'start' | 'stop' | 'pause' | 'reset' }) => void;
+  onPomodoroPhaseComplete?: (data: { phase: 'work' | 'break', nextPhase: 'break' | 'prompt', message: string }) => void;
+  onPomodoroSync?: (data: { action: string, phase: string, duration?: number }) => void;
 }
 
 export function useSocketIO({ 
   onAudioStarting, 
   onAudioFinished, 
-  onAudioStopped 
+  onAudioStopped,
+  onPomodoroCommand,
+  onPomodoroPhaseComplete,
+  onPomodoroSync
 }: UseSocketIOProps) {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
@@ -60,17 +66,38 @@ export function useSocketIO({
       onAudioStopped?.(data);
     };
 
+    const handlePomodoroCommand = (data: { action: 'start' | 'stop' | 'pause' | 'reset' }) => {
+      console.log('🍅 Server pomodoro command received:', data);
+      onPomodoroCommand?.(data);
+    };
+
+    const handlePomodoroPhaseComplete = (data: { phase: 'work' | 'break', nextPhase: 'break' | 'prompt', message: string }) => {
+      console.log('🍅 Server pomodoro phase complete:', data);
+      onPomodoroPhaseComplete?.(data);
+    };
+
+    const handlePomodoroSync = (data: { action: string, phase: string, duration?: number }) => {
+      console.log('🍅 Server pomodoro sync:', data);
+      onPomodoroSync?.(data);
+    };
+
     socket.on('audio_starting', handleAudioStarting);
     socket.on('audio_finished', handleAudioFinished);
     socket.on('audio_stopped', handleAudioStopped);
+    socket.on('pomodoro_command', handlePomodoroCommand);
+    socket.on('pomodoro_phase_complete', handlePomodoroPhaseComplete);
+    socket.on('pomodoro_sync', handlePomodoroSync);
     
     // Cleanup event listeners
     return () => {
       socket.off('audio_starting', handleAudioStarting);
       socket.off('audio_finished', handleAudioFinished);
       socket.off('audio_stopped', handleAudioStopped);
+      socket.off('pomodoro_command', handlePomodoroCommand);
+      socket.off('pomodoro_phase_complete', handlePomodoroPhaseComplete);
+      socket.off('pomodoro_sync', handlePomodoroSync);
     };
-  }, [socket, onAudioStarting, onAudioFinished, onAudioStopped]);
+  }, [socket, onAudioStarting, onAudioFinished, onAudioStopped, onPomodoroCommand, onPomodoroPhaseComplete, onPomodoroSync]);
 
   // Emit command via WebSocket
   const emitCommand = useCallback((command: any, callback?: (response: any) => void) => {
