@@ -1,5 +1,5 @@
 interface IntentAnalysis {
-  intent: 'ADD_TASK' | 'DELETE_TASK' | 'DELETE_ALL_TASKS' | 'MOVE_TASK' | 'GENERATE_TASKS' | 'UNKNOWN'
+  intent: 'ADD_TASK' | 'DELETE_TASK' | 'DELETE_ALL_TASKS' | 'MOVE_TASK' | 'GENERATE_TASKS' | 'POMODORO' | 'POMODORO_DURATION' | 'UNKNOWN'
   confidence: number
   entities: {
     taskName?: string
@@ -8,6 +8,8 @@ interface IntentAnalysis {
     count?: number
     taskType?: string
     timeframe?: string
+    pomodoroAction?: 'start' | 'stop' | 'pause' | 'reset' | 'continue'
+    pomodoroDuration?: number
   }
   reasoning: string
 }
@@ -32,7 +34,12 @@ export class IntentAnalyzer {
       hasDeleteKeywords: this.hasSemanticMatch(message, ['delete', 'remove', 'clear', 'eliminate', 'cancel', 'drop']),
       hasCompletionKeywords: this.hasSemanticMatch(message, ['done', 'complete', 'finished', 'ready']),
       hasProgressKeywords: this.hasSemanticMatch(message, ['progress', 'working', 'started', 'doing', 'active']),
-      hasGlobalKeywords: this.hasSemanticMatch(message, ['all', 'everything', 'clear all', 'delete all', 'reset'])
+      hasGlobalKeywords: this.hasSemanticMatch(message, ['all', 'everything', 'clear all', 'delete all', 'reset']),
+      hasPomodoroKeywords: this.hasSemanticMatch(message, ['pomodoro', 'timer', 'focus', 'work session', 'break']),
+      hasPomodoroStartKeywords: this.hasSemanticMatch(message, ['start', 'begin', 'launch', 'activate', 'run']),
+      hasPomodoroStopKeywords: this.hasSemanticMatch(message, ['stop', 'pause', 'end', 'halt', 'cancel']),
+      hasPomodoroResetKeywords: this.hasSemanticMatch(message, ['reset', 'restart', 'clear']),
+      hasPomodoroontinueKeywords: this.hasSemanticMatch(message, ['continue', 'next', 'another', 'more'])
     }
     
     // AI-powered intent classification with confidence scoring
@@ -40,7 +47,29 @@ export class IntentAnalyzer {
   }
   
   private classifyIntentWithAI(message: string, context: any, existingTasks: any[]): IntentAnalysis {
-    // GENERATE TASKS - Highest priority for creation requests
+    // POMODORO DURATION - Check for simple number responses (highest priority when expecting duration)
+    if (this.isPomodoroTimeResponse(message)) {
+      const duration = this.extractDurationFromMessage(message)
+      return {
+        intent: 'POMODORO_DURATION',
+        confidence: 0.95,
+        entities: { pomodoroDuration: duration },
+        reasoning: `AI detected Pomodoro duration response: ${duration} minutes`
+      }
+    }
+
+    // POMODORO - High priority for timer commands
+    if (context.hasPomodoroKeywords) {
+      const pomodoroAction = this.extractPomodoroAction(message, context)
+      return {
+        intent: 'POMODORO',
+        confidence: 0.95,
+        entities: { pomodoroAction },
+        reasoning: `AI detected Pomodoro ${pomodoroAction} command`
+      }
+    }
+
+    // GENERATE TASKS - High priority for creation requests
     if (context.hasGenerationKeywords && context.hasTaskKeywords) {
       const entities = this.extractGenerationEntities(message)
       if (entities.count > 0) {
@@ -264,6 +293,53 @@ export class IntentAnalyzer {
     
     const taskWords = words.filter(word => !commandWords.includes(word.toLowerCase()))
     return taskWords.length > 0 ? taskWords.join(' ') : null
+  }
+
+  private extractPomodoroAction(message: string, context: any): 'start' | 'stop' | 'pause' | 'reset' | 'continue' {
+    // AI-powered Pomodoro action extraction
+    if (context.hasPomodoroontinueKeywords) return 'continue'
+    if (context.hasPomodoroStartKeywords) return 'start'
+    if (context.hasPomodoroStopKeywords) return 'stop'
+    if (context.hasPomodoroResetKeywords) return 'reset'
+    
+    // Default action if only pomodoro keywords are mentioned
+    return 'start'
+  }
+
+  private isPomodoroTimeResponse(message: string): boolean {
+    const trimmed = message.trim().toLowerCase()
+    
+    // Check if it's a simple number (like "25", "30", etc.)
+    if (/^\d+$/.test(trimmed)) {
+      const num = parseInt(trimmed)
+      return num >= 1 && num <= 120 // reasonable pomodoro duration range
+    }
+    
+    // Check for time expressions
+    if (/^\d+\s*(min|minutes?|hour|hours?|hrs?)$/i.test(trimmed)) {
+      return true
+    }
+    
+    return false
+  }
+
+  private extractDurationFromMessage(message: string): number {
+    const trimmed = message.trim().toLowerCase()
+    const numberMatch = trimmed.match(/(\d+)/)
+    
+    if (numberMatch) {
+      const number = parseInt(numberMatch[1])
+      
+      // If hours mentioned, convert to minutes
+      if (trimmed.includes('hour') || trimmed.includes('hr')) {
+        return number * 60
+      }
+      
+      // Default to minutes
+      return number
+    }
+    
+    return 25 // default fallback
   }
 
   // UTILITY METHODS (keeping existing functionality)
