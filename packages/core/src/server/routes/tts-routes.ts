@@ -1,7 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { TTSManager } from '../../tts-manager';
 import { createLogger } from '../../utils/logger';
-import '../../types/fastify';
 
 const logger = createLogger('tts-routes');
 

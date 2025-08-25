@@ -33,28 +33,44 @@ export function useSocketIO({
       setIsConnected(false);
     });
     
-    // Listen for audio events from server
-    socketInstance.on('audio_starting', (data) => {
-      console.log('🎵 Server audio starting event received:', data);
-      onAudioStarting?.(data);
-    });
-    
-    socketInstance.on('audio_finished', (data) => {
-      console.log('🔚 Server audio finished event received:', data);
-      onAudioFinished?.(data);
-    });
-    
-    socketInstance.on('audio_stopped', (data) => {
-      console.log('🛑 Server audio stopped event received:', data);
-      onAudioStopped?.(data);
-    });
-    
     // Cleanup on unmount
     return () => {
       console.log('🧹 Cleaning up Socket.IO connection');
       socketInstance.disconnect();
     };
-  }, [onAudioStarting, onAudioFinished, onAudioStopped]);
+  }, []); // Only run once on mount
+
+  // Set up event listeners in a separate effect
+  useEffect(() => {
+    if (!socket) return;
+
+    // Listen for audio events from server
+    const handleAudioStarting = (data: any) => {
+      console.log('🎵 Server audio starting event received:', data);
+      onAudioStarting?.(data);
+    };
+    
+    const handleAudioFinished = (data: any) => {
+      console.log('🔚 Server audio finished event received:', data);
+      onAudioFinished?.(data);
+    };
+    
+    const handleAudioStopped = (data: any) => {
+      console.log('🛑 Server audio stopped event received:', data);
+      onAudioStopped?.(data);
+    };
+
+    socket.on('audio_starting', handleAudioStarting);
+    socket.on('audio_finished', handleAudioFinished);
+    socket.on('audio_stopped', handleAudioStopped);
+    
+    // Cleanup event listeners
+    return () => {
+      socket.off('audio_starting', handleAudioStarting);
+      socket.off('audio_finished', handleAudioFinished);
+      socket.off('audio_stopped', handleAudioStopped);
+    };
+  }, [socket, onAudioStarting, onAudioFinished, onAudioStopped]);
 
   // Emit command via WebSocket
   const emitCommand = useCallback((command: any, callback?: (response: any) => void) => {
