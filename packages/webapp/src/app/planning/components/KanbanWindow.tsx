@@ -156,11 +156,11 @@ export function KanbanWindow({
           className="bg-gradient-to-r from-cyan-600/20 to-blue-600/20 border-b border-cyan-500/30 px-4 py-3 flex items-center justify-between cursor-move select-none"
         >
           <div className="flex items-center gap-3">
-            <svg className="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 text-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 002 2m0 0v10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2" />
             </svg>
-            <h2 className="text-cyan-400 font-semibold text-lg">Kanban Board</h2>
-            <span className="bg-cyan-500/20 text-cyan-300 px-2 py-1 rounded text-sm">
+            <h2 className="text-foreground font-semibold text-lg">Kanban Board</h2>
+            <span className="bg-cyan-500/20 text-muted-foreground px-2 py-1 rounded text-sm">
               {tasks.length} tasks
             </span>
           </div>
@@ -202,7 +202,7 @@ export function KanbanWindow({
         </div>
 
         {/* Content */}
-        <div className="flex-1 p-6 bg-gradient-to-br from-gray-900 via-gray-800 to-black overflow-auto">
+        <div className="flex-1 p-6 bg-background overflow-auto">
           <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4 mb-6">
             <div className="flex items-center gap-2 text-blue-400">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

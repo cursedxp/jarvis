@@ -1,16 +1,21 @@
 'use client'
 
 import dynamic from 'next/dynamic'
+import { ThemeProvider } from '@/contexts/ThemeContext'
 
 const PlanningClient = dynamic(() => import('./PlanningClient'), {
   ssr: false,
   loading: () => (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black flex items-center justify-center">
-      <div className="text-cyan-400">Loading Planning App...</div>
+    <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="text-foreground">Loading Planning App...</div>
     </div>
   )
 })
 
 export default function PlanningPage() {
-  return <PlanningClient />
+  return (
+    <ThemeProvider>
+      <PlanningClient />
+    </ThemeProvider>
+  )
 }

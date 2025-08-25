@@ -242,15 +242,15 @@ export default function PlanningClient() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black flex items-center justify-center">
-        <div className="text-cyan-400">Loading...</div>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-foreground">Loading...</div>
       </div>
     )
   }
 
   if (!todayPlan) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-red-400">Failed to load planning data</div>
       </div>
     )
@@ -261,10 +261,10 @@ export default function PlanningClient() {
   const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black p-4">
+    <div className="min-h-screen bg-background p-4">
       <div className="max-w-6xl mx-auto">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-bold text-cyan-400">Today's Planning</h1>
+          <h1 className="text-3xl font-bold text-foreground">Today's Planning</h1>
           <div className="flex items-center gap-4">
             <div className="text-cyan-300">
               {new Date().toLocaleDateString('en-US', {
@@ -279,7 +279,7 @@ export default function PlanningClient() {
 
         <div className="grid grid-cols-4 gap-4 mb-6">
           <div className="bg-gray-800/50 p-4 rounded-lg text-center border border-cyan-500/20">
-            <div className="text-2xl font-bold text-cyan-400">{totalTasks}</div>
+            <div className="text-2xl font-bold text-foreground">{totalTasks}</div>
             <div className="text-sm text-gray-400">Total Tasks</div>
           </div>
           <div className="bg-gray-800/50 p-4 rounded-lg text-center border border-cyan-500/20">
@@ -291,13 +291,13 @@ export default function PlanningClient() {
             <div className="text-sm text-gray-400">Remaining</div>
           </div>
           <div className="bg-gray-800/50 p-4 rounded-lg text-center border border-cyan-500/20">
-            <div className="text-2xl font-bold text-cyan-400">{completionRate}%</div>
+            <div className="text-2xl font-bold text-foreground">{completionRate}%</div>
             <div className="text-sm text-gray-400">Progress</div>
           </div>
         </div>
 
         <div className="space-y-4">
-          <h2 className="text-xl font-semibold text-cyan-400">Tasks</h2>
+          <h2 className="text-xl font-semibold text-foreground">Tasks</h2>
           
           {/* Add Task Form */}
               <form onSubmit={addTask} className="bg-gray-800/30 p-4 rounded-lg border border-cyan-500/20">

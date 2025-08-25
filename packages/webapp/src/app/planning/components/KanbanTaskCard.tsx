@@ -64,7 +64,7 @@ export function KanbanTaskCard({ task, onEdit, onDelete }: KanbanTaskCardProps) 
       style={style}
       {...attributes}
       {...listeners}
-      className={`bg-gray-800/50 p-3 rounded-lg border border-cyan-500/20 cursor-grab active:cursor-grabbing hover:border-cyan-500/40 hover:bg-gray-800/70 transition-all duration-200 ${
+      className={`bg-card/50 p-3 rounded-lg border border-border cursor-grab active:cursor-grabbing hover:border-cyan-500/40 hover:bg-card/70 transition-all duration-200 ${
         isDragging ? 'shadow-lg shadow-cyan-500/25 scale-105 rotate-2' : ''
       }`}
     >

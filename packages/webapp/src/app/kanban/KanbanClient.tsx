@@ -111,15 +111,15 @@ export default function KanbanClient() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black flex items-center justify-center">
-        <div className="text-cyan-400">Loading Kanban Board...</div>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-foreground">Loading Kanban Board...</div>
       </div>
     )
   }
 
   if (!todayPlan) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-red-400">Failed to load tasks</div>
       </div>
     )
@@ -131,13 +131,13 @@ export default function KanbanClient() {
   const doneTasks = todayPlan.tasks.filter(t => t.status === 'done').length
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black p-6">
+    <div className="min-h-screen bg-background p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-6">
           <div className="flex items-center justify-between mb-4">
-            <h1 className="text-3xl font-bold text-cyan-400">Kanban Board</h1>
-            <div className="text-cyan-300 text-sm">
+            <h1 className="text-3xl font-bold text-foreground">Kanban Board</h1>
+            <div className="text-muted-foreground text-sm">
               {new Date().toLocaleDateString('en-US', {
                 weekday: 'long',
                 year: 'numeric',
@@ -149,8 +149,8 @@ export default function KanbanClient() {
           
           {/* Stats */}
           <div className="grid grid-cols-4 gap-4 mb-4">
-            <div className="bg-gray-800/50 p-3 rounded-lg text-center border border-cyan-500/20">
-              <div className="text-xl font-bold text-cyan-400">{totalTasks}</div>
+            <div className="bg-card/50 p-3 rounded-lg text-center border border-border">
+              <div className="text-xl font-bold text-foreground">{totalTasks}</div>
               <div className="text-xs text-gray-400">Total Tasks</div>
             </div>
             <div className="bg-blue-500/20 p-3 rounded-lg text-center border border-blue-500/30">
