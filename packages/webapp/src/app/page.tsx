@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Button } from "@/components/ui/button"
-import { Settings, History } from "lucide-react"
+import { Settings, History, Calendar } from "lucide-react"
 import { io, Socket } from 'socket.io-client'
 
 // Custom components
@@ -10,6 +10,7 @@ import { AnimatedBlob } from '@/components/jarvis/AnimatedBlob'
 import { VoiceControls } from '@/components/jarvis/VoiceControls'
 import { SettingsDialog } from '@/components/jarvis/SettingsDialog'
 import { ChatHistory } from '@/components/jarvis/ChatHistory'
+import { FloatingWindow } from '@/components/jarvis/FloatingWindow'
 
 // Custom hooks
 import { useVoiceRecognition } from '@/hooks/useVoiceRecognition'
@@ -20,6 +21,8 @@ interface Message {
   role: 'user' | 'assistant'
   content: string
   timestamp: Date
+  model?: string
+  taskType?: string
 }
 
 interface Conversation {
@@ -43,6 +46,9 @@ export default function JarvisMinimal() {
   const [voiceState, setVoiceState] = useState<'idle' | 'listening' | 'processing' | 'speaking'>('idle')
   const [isVoiceEnabled, setIsVoiceEnabled] = useState(false)
   const [socket, setSocket] = useState<Socket | null>(null)
+  const [currentModel, setCurrentModel] = useState<string>('main')
+  const [detectedTaskType, setDetectedTaskType] = useState<string>('')
+  const [showPlanningApp, setShowPlanningApp] = useState(false)
 
   // Animation hook
   const { 
@@ -101,6 +107,13 @@ export default function JarvisMinimal() {
     socketInstance.on('audio_finished', (data) => {
       console.log('🔚 Server audio finished event received:', data)
       // Stop animation when audio ends
+      setVoiceState('idle')
+      stopAudioLevelSimulation()
+    })
+    
+    socketInstance.on('audio_stopped', (data) => {
+      console.log('🛑 Server audio stopped event received:', data)
+      // Stop animation immediately when user stops TTS
       setVoiceState('idle')
       stopAudioLevelSimulation()
     })
@@ -184,11 +197,13 @@ export default function JarvisMinimal() {
   }
 
   // Add message to conversation
-  const addMessageToConversation = (role: 'user' | 'assistant', content: string) => {
+  const addMessageToConversation = (role: 'user' | 'assistant', content: string, model?: string, taskType?: string) => {
     const message: Message = {
       role,
       content,
-      timestamp: new Date()
+      timestamp: new Date(),
+      model,
+      taskType
     }
     
     setConversations(prev => prev.map(conv => 
@@ -239,13 +254,21 @@ export default function JarvisMinimal() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type: 'chat',
-          payload: { message: text }
+          payload: { 
+            message: text,
+            conversationHistory: getCurrentMessages()
+          }
         })
       })
       
       if (response.ok) {
         const data = await response.json()
-        addMessageToConversation('assistant', data.content)
+        
+        // Update current model and task type for UI display
+        if (data.model) setCurrentModel(data.model)
+        if (data.taskType) setDetectedTaskType(data.taskType)
+        
+        addMessageToConversation('assistant', data.content, data.model, data.taskType)
         
         // Always speak the response for voice inputs
         if (data.content && isVoiceInput) {
@@ -371,15 +394,32 @@ export default function JarvisMinimal() {
       <div className="flex flex-col h-full">
         {/* Control Buttons - Top */}
         <div className="absolute top-6 left-6 right-6 flex justify-between items-center z-30">
-          <Button
-            onClick={() => setShowChatHistory(!showChatHistory)}
-            variant="outline"
-            size="sm"
-            className="border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/10 cursor-pointer"
-          >
-            <History className="w-4 h-4 mr-2" />
-            History
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={() => setShowChatHistory(!showChatHistory)}
+              variant="ghost"
+              size="sm"
+              className="text-cyan-400 hover:text-cyan-400 hover:bg-cyan-500/10 cursor-pointer p-2"
+            >
+              <History className="w-4 h-4" />
+            </Button>
+            
+            <Button
+              onClick={() => setSettingsOpen(true)}
+              variant="ghost"
+              size="sm"
+              className="text-cyan-400 hover:text-cyan-400 hover:bg-cyan-500/10 cursor-pointer p-2"
+            >
+              <Settings className="w-4 h-4" />
+            </Button>
+            
+            {/* Model Indicator */}
+            {detectedTaskType && (
+              <div className="text-xs bg-cyan-500/20 text-cyan-300 px-2 py-1 rounded">
+                {detectedTaskType.toUpperCase()} MODE
+              </div>
+            )}
+          </div>
           
           <SettingsDialog 
             isOpen={settingsOpen}
@@ -396,16 +436,6 @@ export default function JarvisMinimal() {
             isSpeaking={isSpeaking}
             voiceState={voiceState}
           />
-          
-          <Button
-            onClick={() => setSettingsOpen(true)}
-            variant="outline"
-            size="sm"
-            className="border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/10 cursor-pointer"
-          >
-            <Settings className="w-4 h-4 mr-2" />
-            Settings
-          </Button>
         </div>
 
         {/* Animated Blob */}
@@ -425,6 +455,33 @@ export default function JarvisMinimal() {
           onStopVoice={handleStopVoice}
           onStopTTS={handleStopTTS}
         />
+
+        {/* Planning App Button - Bottom Right */}
+        <div className="absolute bottom-6 right-6 z-30">
+          <Button
+            onClick={() => setShowPlanningApp(!showPlanningApp)}
+            variant="ghost"
+            size="sm"
+            className="text-cyan-400 hover:text-cyan-400 hover:bg-cyan-500/10 cursor-pointer p-3 rounded-full"
+          >
+            <Calendar className="w-5 h-5" />
+          </Button>
+        </div>
+
+        {/* Planning App Floating Window */}
+        <FloatingWindow
+          isOpen={showPlanningApp}
+          onClose={() => setShowPlanningApp(false)}
+          title="Planning App"
+          defaultWidth={400}
+          defaultHeight={600}
+        >
+          <iframe
+            src="http://localhost:8080"
+            className="w-full h-full border-0"
+            title="Planning App"
+          />
+        </FloatingWindow>
       </div>
     </div>
   )

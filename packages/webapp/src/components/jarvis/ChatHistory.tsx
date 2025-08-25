@@ -27,7 +27,7 @@ export function ChatHistory({ isVisible, onClose, messages }: ChatHistoryProps) 
             onClick={onClose}
             variant="ghost"
             size="sm"
-            className="text-gray-400 hover:text-white cursor-pointer"
+            className="text-cyan-400 hover:text-cyan-400 hover:bg-cyan-500/10 cursor-pointer p-2"
           >
             <ChevronLeft className="w-4 h-4" />
           </Button>

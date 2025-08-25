@@ -125,7 +125,7 @@ export function SettingsDialog({
                   max={300}
                   min={100}
                   step={10}
-                  className="w-full [&>span:first-child]:h-2 [&>span:first-child]:bg-cyan-500 [&_[role=slider]]:bg-white [&_[role=slider]]:border-white [&_[role=slider]]:w-5 [&_[role=slider]]:h-5 [&_[role=slider]]:border-2 [&>span:first-child>span]:bg-gray-600"
+                  className="w-full [&>span:first-child]:h-2 [&>span:first-child]:bg-cyan-500 [&_[role=slider]]:bg-cyan-400 [&_[role=slider]]:border-cyan-400 [&_[role=slider]]:w-5 [&_[role=slider]]:h-5 [&_[role=slider]]:border-2 [&>span:first-child>span]:bg-gray-600"
                 />
                 <div className="flex justify-between text-xs text-gray-500 mt-1">
                   <span>100</span>
