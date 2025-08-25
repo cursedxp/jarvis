@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import { Settings, History, Calendar } from "lucide-react";
 import dynamic from 'next/dynamic';
@@ -60,20 +60,27 @@ export function JarvisMainContainer() {
     addMessageToConversation
   } = useConversations();
 
+  // Socket.IO callbacks with useCallback to prevent re-renders
+  const onAudioStarting = useCallback(() => {
+    setVoiceState('speaking');
+    startAudioLevelSimulation();
+  }, [startAudioLevelSimulation]);
+
+  const onAudioFinished = useCallback(() => {
+    setVoiceState('idle');
+    stopAudioLevelSimulation();
+  }, [stopAudioLevelSimulation]);
+
+  const onAudioStopped = useCallback(() => {
+    setVoiceState('idle');
+    stopAudioLevelSimulation();
+  }, [stopAudioLevelSimulation]);
+
   // Socket.IO hook
   const { socket, isConnected } = useSocketIO({
-    onAudioStarting: () => {
-      setVoiceState('speaking');
-      startAudioLevelSimulation();
-    },
-    onAudioFinished: () => {
-      setVoiceState('idle');
-      stopAudioLevelSimulation();
-    },
-    onAudioStopped: () => {
-      setVoiceState('idle');
-      stopAudioLevelSimulation();
-    }
+    onAudioStarting,
+    onAudioFinished,
+    onAudioStopped
   });
 
   // API hook
