@@ -254,7 +254,7 @@ export class IntentAnalyzer {
       const taskWords = task.title.toLowerCase().split(' ')
       
       // Check if message contains significant words from task title
-      const matchingWords = taskWords.filter(word => 
+      const matchingWords = taskWords.filter((word: string) => 
         word.length > 2 && message.toLowerCase().includes(word)
       )
       
@@ -295,7 +295,7 @@ export class IntentAnalyzer {
     return taskWords.length > 0 ? taskWords.join(' ') : null
   }
 
-  private extractPomodoroAction(message: string, context: any): 'start' | 'stop' | 'pause' | 'reset' | 'continue' {
+  private extractPomodoroAction(_message: string, context: any): 'start' | 'stop' | 'pause' | 'reset' | 'continue' {
     // AI-powered Pomodoro action extraction
     if (context.hasPomodoroontinueKeywords) return 'continue'
     if (context.hasPomodoroStartKeywords) return 'start'

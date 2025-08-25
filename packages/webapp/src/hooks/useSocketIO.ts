@@ -4,9 +4,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 
 interface UseSocketIOProps {
-  onAudioStarting?: (data: any) => void;
-  onAudioFinished?: (data: any) => void;
-  onAudioStopped?: (data: any) => void;
+  onAudioStarting?: (data: Record<string, unknown>) => void;
+  onAudioFinished?: (data: Record<string, unknown>) => void;
+  onAudioStopped?: (data: Record<string, unknown>) => void;
   onPomodoroCommand?: (data: { action: 'start' | 'stop' | 'pause' | 'reset' }) => void;
   onPomodoroPhaseComplete?: (data: { phase: 'work' | 'break', nextPhase: 'break' | 'prompt', message: string }) => void;
   onPomodoroSync?: (data: { action: string, phase: string, duration?: number }) => void;

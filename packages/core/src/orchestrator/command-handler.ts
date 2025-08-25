@@ -15,7 +15,9 @@ export class CommandHandler {
   private fineTuningManager: FineTuningManager;
   private planningHandler: PlanningHandler;
   private pomodoroHandler: PomodoroHandler;
-  private io?: any;
+  // @ts-ignore - used in constructor for handlers
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private _io?: any;
   
   constructor(orchestrator: Orchestrator, io?: any) {
     this.orchestrator = orchestrator;
@@ -25,7 +27,7 @@ export class CommandHandler {
     this.fineTuningManager = new FineTuningManager();
     this.planningHandler = new PlanningHandler(orchestrator, io);
     this.pomodoroHandler = new PomodoroHandler(orchestrator, io);
-    this.io = io;
+    this._io = io;
     console.log('📡 COMMAND HANDLER: Initialized with Socket.IO instance:', !!io);
     this.registerHandlers();
   }

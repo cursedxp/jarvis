@@ -4,12 +4,14 @@ import { intentAnalyzer } from '../../services/intent-analyzer';
 import { PomodoroService } from '../../services/pomodoro-service';
 
 export class PomodoroHandler extends BaseHandler {
-  private io?: any;
+  // @ts-ignore - used for PomodoroService initialization
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private _io?: any;
   private pomodoroService?: PomodoroService;
   
   constructor(_orchestrator: Orchestrator, io?: any) {
     super();
-    this.io = io;
+    this._io = io;
     console.log('🍅 POMODORO HANDLER: Initialized with Socket.IO instance:', !!io);
     
     // Initialize pomodoro service with Socket.IO
@@ -56,7 +58,7 @@ export class PomodoroHandler extends BaseHandler {
           if (analysis.entities.pomodoroDuration) {
             const duration = analysis.entities.pomodoroDuration;
             console.log(`🍅 POMODORO HANDLER: Starting ${duration}-minute Pomodoro session from duration response`);
-            const session = this.pomodoroService!.startWorkSession(duration);
+            this.pomodoroService!.startWorkSession(duration);
             
             return {
               type: 'pomodoro-response',
@@ -75,7 +77,7 @@ export class PomodoroHandler extends BaseHandler {
             if (duration > 0 && message.match(/\d+/)) {
               // Duration provided, start session
               console.log(`🍅 POMODORO HANDLER: Starting ${duration}-minute Pomodoro session`);
-              const session = this.pomodoroService!.startWorkSession(duration);
+              this.pomodoroService!.startWorkSession(duration);
               
               return {
                 type: 'pomodoro-response',
@@ -92,7 +94,7 @@ export class PomodoroHandler extends BaseHandler {
             }
           } else if (analysis.entities.pomodoroAction === 'continue') {
             console.log('🍅 POMODORO HANDLER: Continuing to next Pomodoro session');
-            const session = this.pomodoroService!.continueToNextSession(25);
+            this.pomodoroService!.continueToNextSession(25);
             return {
               type: 'pomodoro-response',
               content: 'Starting your next 25-minute Pomodoro session! Stay focused.',

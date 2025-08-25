@@ -10,8 +10,8 @@ export class TaskGenerator {
     return shuffledTasks.slice(0, count)
   }
   
-  private getTasksForType(taskType: string, timeframe: string, count: number): string[] {
-    const taskSets = {
+  private getTasksForType(taskType: string, timeframe: string, _count: number): string[] {
+    const taskSets: { [key: string]: string[] } = {
       work: [
         'Review and organize email inbox',
         'Update project documentation',
@@ -107,7 +107,7 @@ export class TaskGenerator {
     const baseTasks = taskSets[taskType] || taskSets.general
     
     // Add timeframe context to tasks when appropriate
-    return baseTasks.map(task => {
+    return baseTasks.map((task: string) => {
       if (timeframe === 'today') {
         return task
       } else if (timeframe === 'tomorrow') {

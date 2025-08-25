@@ -56,16 +56,7 @@ export class ChatHandler extends BaseHandler {
       console.log('🎯 CHAT HANDLER: Routing to Planning Handler via orchestrator');
       
       // Route to planning handler - AI understands natural language variations
-      const planningCommand = {
-        ...command,
-        type: 'planning',
-        payload: {
-          ...command.payload,
-          message: message // Use original message - AI handles variations naturally
-        }
-      };
-      
-      return await this.orchestrator.handle(planningCommand);
+      return await this.orchestrator.processWithLLM('This is a planning-related request.');
     }
     
     // Detect intent and auto-route to appropriate model
