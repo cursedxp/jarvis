@@ -3,7 +3,8 @@ import { Command, Orchestrator } from '../orchestrator';
 import { SystemPromptManager } from '../../prompts/system-prompts';
 import { UserPreferenceManager } from '../../services/user-preferences';
 import { KnowledgeBase } from '../../services/knowledge-base';
-import { planningService } from '../../services/planning-integration';
+import { mongodbPlanningService } from '../../services/planning-mongodb';
+import { intentAnalyzer } from '../../services/intent-analyzer';
 
 export class ChatHandler extends BaseHandler {
   private orchestrator: Orchestrator;
@@ -49,14 +50,22 @@ export class ChatHandler extends BaseHandler {
   private async handleChat(command: Command): Promise<any> {
     const { message, conversationHistory } = command.payload;
     
-    // Check for planning commands first
-    const planningCommand = planningService.parseCommand(message);
-    if (planningCommand) {
-      const result = await this.handlePlanningCommand(planningCommand);
-      if (result) {
-        return result;
-      }
-      // If result is null, fall through to normal chat processing
+    // AI-POWERED ROUTING - Check if this is a planning-related command
+    console.log('🤖 CHAT HANDLER: Analyzing message with AI-powered routing');
+    if (await this.isIntelligentPlanningRelated(message)) {
+      console.log('🎯 CHAT HANDLER: Routing to Planning Handler via orchestrator');
+      
+      // Route to planning handler - AI understands natural language variations
+      const planningCommand = {
+        ...command,
+        type: 'planning',
+        payload: {
+          ...command.payload,
+          message: message // Use original message - AI handles variations naturally
+        }
+      };
+      
+      return await this.orchestrator.handle(planningCommand);
     }
     
     // Detect intent and auto-route to appropriate model
@@ -86,14 +95,11 @@ export class ChatHandler extends BaseHandler {
     // Add planning context if available
     let planningContext = '';
     try {
-      const isServiceAvailable = await planningService.isServiceAvailable();
-      if (isServiceAvailable) {
-        const todaysPlan = await planningService.getTodaysPlan();
-        if (todaysPlan) {
-          const totalTasks = todaysPlan.tasks.length;
-          const completedTasks = todaysPlan.tasks.filter(t => t.completed).length;
-          planningContext = `\nToday's Planning Context: You have ${totalTasks} tasks (${completedTasks} completed). Goals: ${todaysPlan.goals.join(', ') || 'None set'}.`;
-        }
+      const todaysPlan = await mongodbPlanningService.getTodaysPlan();
+      if (todaysPlan) {
+        const totalTasks = todaysPlan.tasks.length;
+        const completedTasks = todaysPlan.tasks.filter((t: any) => t.completed).length;
+        planningContext = `\nToday's Planning Context: You have ${totalTasks} tasks (${completedTasks} completed). Goals: ${todaysPlan.goals.join(', ') || 'None set'}.`;
       }
     } catch (error) {
       // Silently fail if planning service unavailable
@@ -162,59 +168,39 @@ export class ChatHandler extends BaseHandler {
     return this.createSuccessResponse('install-guide', { guide: response }, 'Installation guide generated');
   }
 
-  private async handlePlanningCommand(planningCommand: { action: string; data: any }): Promise<any> {
-    const { action, data } = planningCommand;
-    
+
+
+  private async isIntelligentPlanningRelated(message: string): Promise<boolean> {
     try {
-      let result;
-      switch (action) {
-        case 'SAVE_TASK':
-          result = await planningService.addTask({
-            title: data,
-            description: `Task added via voice command`,
-            priority: 'medium'
-          });
-          return {
-            type: 'planning-response',
-            content: result ? `Task "${data}" added to your plan` : 'Failed to add task',
-            success: result
-          };
-          
-        case 'COMPLETE_TASK':
-          result = await planningService.completeTask(data);
-          return {
-            type: 'planning-response',
-            content: result ? `Task "${data}" marked as completed` : 'Failed to complete task',
-            success: result
-          };
-          
-        case 'COMPLETE_ALL_TASKS':
-          // For now, this feature is not implemented in the planning service
-          return {
-            type: 'planning-response',
-            content: 'Complete all tasks feature is not yet implemented',
-            success: false
-          };
-          
-        case 'SAVE_GOAL':
-          // For now, this feature is not implemented in the planning service
-          return {
-            type: 'planning-response',
-            content: 'Add goal feature is not yet implemented',
-            success: false
-          };
-          
-        default:
-          return null;
+      // Get current tasks for context
+      const todaysPlan = await mongodbPlanningService.getTodaysPlan();
+      
+      // Use AI-powered intent analysis - understands natural language variations
+      const analysis = await intentAnalyzer.analyzeIntent(message, todaysPlan?.tasks || []);
+      
+      console.log('🤖 CHAT HANDLER: Intent analysis for routing:', {
+        message: message.substring(0, 50) + '...',
+        intent: analysis.intent,
+        confidence: analysis.confidence,
+        reasoning: analysis.reasoning
+      });
+      
+      // Consider it planning-related if we have a known planning intent with reasonable confidence
+      const isPlanningIntent = analysis.intent !== 'UNKNOWN' && analysis.confidence > 0.6;
+      
+      if (isPlanningIntent) {
+        console.log(`🎯 CHAT HANDLER: Routing to Planning Handler - ${analysis.intent} (confidence: ${analysis.confidence})`);
+      } else {
+        console.log(`💬 CHAT HANDLER: Keeping in general chat - ${analysis.intent} (confidence: ${analysis.confidence})`);
       }
+      
+      return isPlanningIntent;
     } catch (error) {
-      return {
-        type: 'planning-response',
-        content: `Planning service error: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        success: false
-      };
+      console.error('🚨 CHAT HANDLER: Error in AI intent analysis, falling back to general chat:', error);
+      return false; // Fall back to general chat on error
     }
   }
+
 
   private detectTaskType(message: string): string {
     const lowerMessage = message.toLowerCase();
