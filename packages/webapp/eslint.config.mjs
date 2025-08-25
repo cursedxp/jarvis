@@ -19,6 +19,10 @@ const eslintConfig = [
       "build/**",
       "next-env.d.ts",
     ],
+    rules: {
+      // Disable problematic rule due to ESLint version incompatibility
+      "@typescript-eslint/no-unsafe-declaration-merging": "off",
+    },
   },
 ];
 

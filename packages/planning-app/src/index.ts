@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import path from 'path';
 import { DatabaseService } from './services/database';
 import planRoutes from './routes/planRoutes';
 
@@ -17,6 +18,9 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Serve static files for the client
+app.use(express.static(path.join(__dirname, 'client')));
+
 // Routes
 app.use('/api/plans', planRoutes);
 
@@ -30,18 +34,9 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Root endpoint with API info
+// Serve the React app for root path
 app.get('/', (req, res) => {
-  res.json({
-    name: 'Jarvis Planning App API',
-    version: '1.0.0',
-    description: 'Daily and weekly planning API for Jarvis assistant',
-    endpoints: {
-      health: '/health',
-      plans: '/api/plans',
-      today: '/api/plans/today'
-    }
-  });
+  res.sendFile(path.join(__dirname, 'client', 'index.html'));
 });
 
 // Error handling middleware

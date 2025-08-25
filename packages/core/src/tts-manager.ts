@@ -6,7 +6,6 @@ const logger = createLogger('tts-manager');
 export class TTSManager {
   private useSystemTTS: boolean = false;
   private currentVoice: string = 'Alex';
-  private speechRate: number = 180;
   private socketIO: any = null;
 
   constructor(socketIO?: any) {
@@ -40,7 +39,8 @@ export class TTSManager {
   }
 
   setSpeechRate(rate: number) {
-    this.speechRate = rate;
+    // Speech rate setting - implementation placeholder
+    logger.info(`Speech rate set to: ${rate}`);
   }
 
   getAvailableVoices(): string[] {
@@ -135,7 +135,18 @@ export class TTSManager {
 
   stopSpeaking() {
     // Kill any running TTS processes
+    logger.info('🛑 Killing TTS processes (edge-tts|afplay)');
     spawn('pkill', ['-f', 'edge-tts|afplay']);
-    logger.info('Stopped TTS playback');
+    
+    // Emit stop event via WebSocket
+    if (this.socketIO) {
+      this.socketIO.emit('audio_stopped', {
+        timestamp: Date.now(),
+        reason: 'user_stop'
+      });
+      logger.info('📡 Emitted audio_stopped event');
+    }
+    
+    logger.info('✅ TTS stop command completed');
   }
 }

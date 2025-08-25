@@ -41,7 +41,6 @@ export function useAudioAnimation() {
       const variation = Math.sin(Date.now() / 100) * 10
       const finalLevel = Math.max(10, baseLevel + variation * intensity)
       
-      console.log('🎚️ Audio level:', finalLevel.toFixed(1))
       setRealTimeAudioLevel(finalLevel)
       
       // Vary intensity over time

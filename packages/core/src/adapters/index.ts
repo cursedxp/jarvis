@@ -14,12 +14,12 @@ export async function initializeAdapters(): Promise<Map<string, LLMAdapter>> {
     if (process.env.OLLAMA_MODEL || process.env.USE_LOCAL_LLM === 'true') {
       const ollama = new OllamaAdapter({
         apiKey: '', // Not needed for Ollama
-        model: process.env.OLLAMA_MODEL || 'llama3.2:3b',
+        model: process.env.OLLAMA_MODEL || 'llama3.2:latest',
         baseUrl: process.env.OLLAMA_BASE_URL || 'http://localhost:11434'
       });
       adapters.set('ollama', ollama);
       adapters.set('local', ollama); // Alias for convenience
-      logger.info(`Ollama adapter initialized with model: ${process.env.OLLAMA_MODEL || 'llama3.2:3b'}`);
+      logger.info(`Ollama adapter initialized with model: ${process.env.OLLAMA_MODEL || 'llama3.2:latest'}`);
     }
     
     if (process.env.OPENAI_API_KEY) {

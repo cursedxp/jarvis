@@ -115,7 +115,7 @@ export class OllamaAdapter extends LLMAdapter {
       return data.models?.map((model: any) => model.name) || [];
     } catch (error) {
       console.error('Failed to fetch Ollama models:', error);
-      return ['llama3.2:3b', 'codellama:7b', 'mistral:7b']; // Fallback popular models
+      return ['llama3.2:latest', 'codellama:latest', 'llama3.2:3b', 'codellama:7b']; // Fallback popular models
     }
   }
 }

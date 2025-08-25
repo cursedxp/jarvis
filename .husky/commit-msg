@@ -1,0 +1,44 @@
+#!/usr/bin/env sh
+
+echo "📝 Validating commit message..."
+
+# Read the commit message
+commit_message=$(cat $1)
+
+# Define conventional commit pattern
+# Allows: feat, fix, docs, style, refactor, test, chore
+# Format: type(optional scope): description
+conventional_pattern="^(feat|fix|docs|style|refactor|test|chore)(\(.+\))?: .{1,50}"
+
+# Check if commit message follows conventional commits
+if echo "$commit_message" | grep -qE "$conventional_pattern"; then
+    echo "✅ Commit message follows conventional commits format"
+else
+    echo "❌ Invalid commit message format!"
+    echo ""
+    echo "Please use conventional commits format:"
+    echo "  feat: add new feature"
+    echo "  fix: fix a bug"
+    echo "  docs: update documentation"
+    echo "  style: formatting changes"
+    echo "  refactor: code refactoring"
+    echo "  test: add or update tests"
+    echo "  chore: maintenance tasks"
+    echo ""
+    echo "Examples:"
+    echo "  feat: add user authentication"
+    echo "  fix: resolve memory leak in TTS"
+    echo "  feat(planning): add task completion"
+    echo ""
+    exit 1
+fi
+
+# Check commit message length
+first_line=$(echo "$commit_message" | head -n 1)
+if [ ${#first_line} -gt 72 ]; then
+    echo "❌ Commit message first line is too long (${#first_line} > 72 characters)"
+    echo "Please keep the first line under 72 characters"
+    exit 1
+fi
+
+echo "✅ Commit message validation passed!"

@@ -17,46 +17,136 @@ export interface ModelInfo {
 export class ModelRegistry extends EventEmitter {
   private models: Map<string, ModelInfo> = new Map();
   private adapters: Map<string, LLMAdapter> = new Map();
-  private activeModel: string = 'llama3.2:3b';
+  private activeModel: string = 'llama3.2:latest';
   
   constructor() {
     super();
-    this.initializeDefaultModels();
+    // Initialize with fallback models first
+    this.initializeFallbackModels();
+    // Discover available models in background
+    this.discoverAvailableModels().catch(err => 
+      logger.warn('Background model discovery failed:', err)
+    );
   }
   
-  private initializeDefaultModels() {
-    // Local Ollama models
-    this.models.set('llama3.2:3b', {
-      id: 'llama3.2:3b',
-      name: 'Llama 3.2 3B',
-      provider: 'ollama',
-      capabilities: ['chat', 'general', 'reasoning'],
-      description: 'Fast and efficient general-purpose model',
-      recommendedFor: ['general chat', 'quick questions', 'everyday tasks'],
-      performance: 'fast'
-    });
-    
-    this.models.set('codellama:7b', {
-      id: 'codellama:7b',
-      name: 'CodeLlama 7B',
-      provider: 'ollama',
-      capabilities: ['code', 'programming', 'debugging', 'refactoring'],
-      description: 'Specialized for code generation and programming tasks',
-      recommendedFor: ['code explanation', 'refactoring', 'debugging', 'code generation'],
-      performance: 'balanced'
-    });
-    
-    this.models.set('mistral:7b', {
-      id: 'mistral:7b',
-      name: 'Mistral 7B',
-      provider: 'ollama',
-      capabilities: ['chat', 'reasoning', 'analysis'],
-      description: 'High-quality general model with strong reasoning',
-      recommendedFor: ['complex reasoning', 'analysis', 'detailed explanations'],
-      performance: 'powerful'
-    });
-    
+  async initialize() {
+    // Public method to fully initialize with discovered models
+    await this.discoverAvailableModels();
     logger.info(`Initialized ${this.models.size} models in registry`);
+  }
+
+  private async discoverAvailableModels() {
+    try {
+      // Try to get available models from Ollama
+      const response = await fetch('http://localhost:11434/api/tags').catch(() => null);
+      
+      if (response && response.ok) {
+        const data = await response.json() as { models?: any[] };
+        const availableModels = data.models || [];
+        
+        for (const model of availableModels) {
+          const modelInfo = this.analyzeModelCapabilities(model.name);
+          if (modelInfo) {
+            this.models.set(model.name, modelInfo);
+          }
+        }
+        
+        logger.info(`Discovered ${availableModels.length} models from Ollama`);
+      } else {
+        // Fallback to common model patterns if Ollama is not available
+        this.initializeFallbackModels();
+      }
+      
+      // Set default active model to best available general model
+      this.activeModel = this.findBestModelForTask('general') || 'llama3.2:latest';
+      
+    } catch (error) {
+      logger.warn('Failed to discover models, using fallback:', error);
+      this.initializeFallbackModels();
+    }
+  }
+
+  private analyzeModelCapabilities(modelName: string): ModelInfo | null {
+    const name = modelName.toLowerCase();
+    
+    // Coding-focused models
+    if (name.includes('codellama') || name.includes('code') || name.includes('starcoder')) {
+      return {
+        id: modelName,
+        name: this.formatModelName(modelName),
+        provider: 'ollama',
+        capabilities: ['code', 'programming', 'debugging', 'refactoring'],
+        description: 'Specialized for code generation and programming tasks',
+        recommendedFor: ['code explanation', 'refactoring', 'debugging', 'code generation'],
+        performance: name.includes('13b') || name.includes('34b') ? 'powerful' : 'balanced'
+      };
+    }
+    
+    // General conversation models
+    if (name.includes('llama') || name.includes('alpaca') || name.includes('vicuna')) {
+      return {
+        id: modelName,
+        name: this.formatModelName(modelName),
+        provider: 'ollama',
+        capabilities: ['chat', 'general', 'reasoning'],
+        description: 'General-purpose conversational model',
+        recommendedFor: ['general chat', 'quick questions', 'everyday tasks'],
+        performance: name.includes('13b') || name.includes('70b') ? 'powerful' : 'fast'
+      };
+    }
+    
+    // Analysis/reasoning models
+    if (name.includes('mistral') || name.includes('mixtral') || name.includes('wizard')) {
+      return {
+        id: modelName,
+        name: this.formatModelName(modelName),
+        provider: 'ollama',
+        capabilities: ['chat', 'reasoning', 'analysis'],
+        description: 'High-quality model with strong reasoning capabilities',
+        recommendedFor: ['complex reasoning', 'analysis', 'detailed explanations'],
+        performance: name.includes('8x7b') || name.includes('13b') ? 'powerful' : 'balanced'
+      };
+    }
+    
+    // Default for unknown models
+    return {
+      id: modelName,
+      name: this.formatModelName(modelName),
+      provider: 'ollama',
+      capabilities: ['chat', 'general'],
+      description: 'General-purpose model',
+      recommendedFor: ['general tasks'],
+      performance: 'balanced'
+    };
+  }
+
+  private formatModelName(modelName: string): string {
+    return modelName
+      .split(':')[0]
+      .split('-')
+      .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ');
+  }
+
+  private initializeFallbackModels() {
+    // Only register models that actually exist, not hypothetical ones
+    logger.info('Using discovered models only, no fallback models');
+  }
+
+  private findBestModelForTask(taskType: string): string | null {
+    const models = Array.from(this.models.values());
+    
+    switch (taskType) {
+      case 'coding':
+        return models.find(m => m.capabilities.includes('code'))?.id || null;
+      case 'general':
+      case 'conversation':
+        return models.find(m => m.capabilities.includes('chat'))?.id || null;
+      case 'analysis':
+        return models.find(m => m.capabilities.includes('analysis'))?.id || null;
+      default:
+        return models[0]?.id || null;
+    }
   }
   
   setAdapters(adapters: Map<string, LLMAdapter>) {
@@ -141,38 +231,62 @@ export class ModelRegistry extends EventEmitter {
     }
   }
   
-  // Auto-select best model for task
+  // Auto-select best model for task (dynamic)
   autoSelectModel(taskType: string): string {
     let bestModel = this.activeModel;
     
     switch (taskType.toLowerCase()) {
+      case 'coding':
       case 'code':
       case 'explain':
-      case 'refactor':
+      case 'refactor': 
       case 'test':
-        // Prefer CodeLlama for coding tasks
-        if (this.models.has('codellama:7b')) {
-          bestModel = 'codellama:7b';
-        }
+        bestModel = this.findBestModelByCapability(['code', 'programming']) || bestModel;
         break;
         
+      case 'conversation':
       case 'chat':
       case 'general':
-        // Use fastest model for general chat
-        if (this.models.has('llama3.2:3b')) {
-          bestModel = 'llama3.2:3b';
-        }
+        bestModel = this.findBestModelByCapability(['chat', 'general']) || bestModel;
         break;
         
+      case 'technical':
       case 'analysis':
       case 'complex':
-        // Use most powerful model for complex tasks
-        if (this.models.has('mistral:7b')) {
-          bestModel = 'mistral:7b';
-        }
+        bestModel = this.findBestModelByCapability(['analysis', 'reasoning']) || 
+                   this.findBestModelByCapability(['code', 'programming']) || bestModel;
+        break;
+        
+      case 'creative':
+        bestModel = this.findBestModelByCapability(['chat', 'general']) || bestModel;
         break;
     }
     
+    logger.info(`Auto-selecting model for '${taskType}' task: ${bestModel}`);
     return bestModel;
+  }
+
+  private findBestModelByCapability(capabilities: string[]): string | null {
+    const models = Array.from(this.models.values());
+    
+    // Find models that have any of the required capabilities
+    const suitableModels = models.filter(model => 
+      capabilities.some(cap => model.capabilities.includes(cap))
+    );
+    
+    if (suitableModels.length === 0) return null;
+    
+    // Prefer models with 'latest' tag, then by performance
+    const prioritized = suitableModels.sort((a, b) => {
+      // Prioritize 'latest' models
+      if (a.id.includes('latest') && !b.id.includes('latest')) return -1;
+      if (!a.id.includes('latest') && b.id.includes('latest')) return 1;
+      
+      // Then by performance
+      const perfOrder = { 'powerful': 3, 'balanced': 2, 'fast': 1 };
+      return (perfOrder[b.performance] || 1) - (perfOrder[a.performance] || 1);
+    });
+    
+    return prioritized[0].id;
   }
 }

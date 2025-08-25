@@ -1,4 +1,4 @@
-import { format, parseISO } from 'date-fns';
+import { format } from 'date-fns';
 
 interface PlanningTask {
   id: string;
@@ -32,14 +32,14 @@ interface WeeklyStats {
 export class PlanningIntegration {
   private baseUrl: string;
 
-  constructor(baseUrl: string = 'http://localhost:8080/api/plans') {
+  constructor(baseUrl: string = 'http://localhost:3000/api/plans') {
     this.baseUrl = baseUrl;
   }
 
   // Check if planning service is available
   async isServiceAvailable(): Promise<boolean> {
     try {
-      const response = await fetch(`${this.baseUrl.replace('/api/plans', '')}/health`);
+      const response = await fetch(`${this.baseUrl}/today`);
       return response.ok;
     } catch {
       return false;
@@ -52,7 +52,7 @@ export class PlanningIntegration {
       const response = await fetch(`${this.baseUrl}/today`);
       if (response.status === 404) return null;
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      return await response.json();
+      return await response.json() as DailyPlan;
     } catch (error) {
       console.error('Failed to get today\'s plan:', error);
       return null;
@@ -68,7 +68,7 @@ export class PlanningIntegration {
         body: JSON.stringify(data)
       });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      return await response.json();
+      return await response.json() as DailyPlan;
     } catch (error) {
       console.error('Failed to create today\'s plan:', error);
       return null;
@@ -78,11 +78,13 @@ export class PlanningIntegration {
   // Task operations
   async addTask(task: { title: string; description?: string; priority?: 'low' | 'medium' | 'high' }): Promise<boolean> {
     try {
-      const today = format(new Date(), 'yyyy-MM-dd');
-      const response = await fetch(`${this.baseUrl}/daily/${today}/tasks`, {
+      const response = await fetch(`${this.baseUrl}/today`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(task)
+        body: JSON.stringify({
+          type: 'task',
+          ...task
+        })
       });
       return response.ok;
     } catch (error) {
@@ -93,11 +95,10 @@ export class PlanningIntegration {
 
   async completeTask(taskId: string): Promise<boolean> {
     try {
-      const today = format(new Date(), 'yyyy-MM-dd');
-      const response = await fetch(`${this.baseUrl}/daily/${today}/tasks/${taskId}`, {
+      const response = await fetch(`${this.baseUrl}/today`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ completed: true })
+        body: JSON.stringify({ taskId, completed: true })
       });
       return response.ok;
     } catch (error) {
@@ -112,7 +113,7 @@ export class PlanningIntegration {
       const targetDate = format(date || new Date(), 'yyyy-MM-dd');
       const response = await fetch(`${this.baseUrl}/stats/weekly/${targetDate}`);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      return await response.json();
+      return await response.json() as WeeklyStats;
     } catch (error) {
       console.error('Failed to get weekly stats:', error);
       return null;
@@ -174,45 +175,29 @@ export class PlanningIntegration {
     return summary;
   }
 
-  // Parse natural language commands
+  // Simple natural language understanding - let LLM do the heavy lifting
   parseCommand(message: string): { action: string; data: any } | null {
+    console.log('🔍 Checking if message relates to planning:', message);
+    
     const lowerMessage = message.toLowerCase();
-
-    // Add task commands
-    if (lowerMessage.includes('add task') || lowerMessage.includes('create task')) {
-      const taskMatch = message.match(/(?:add|create) task[:\s]+(.+)/i);
-      if (taskMatch) {
-        return {
-          action: 'addTask',
-          data: { title: taskMatch[1].trim() }
-        };
-      }
-    }
-
-    // Complete task commands
-    if (lowerMessage.includes('complete task') || lowerMessage.includes('finish task')) {
-      return { action: 'listTasksToComplete', data: {} };
-    }
-
-    // Get today's plan
-    if (lowerMessage.includes('today') && (lowerMessage.includes('plan') || lowerMessage.includes('schedule'))) {
-      return { action: 'getTodaysPlan', data: {} };
-    }
-
-    // Weekly summary
-    if (lowerMessage.includes('week') && (lowerMessage.includes('summary') || lowerMessage.includes('progress'))) {
-      return { action: 'getWeeklySummary', data: {} };
-    }
-
-    // Add goal
-    if (lowerMessage.includes('add goal') || lowerMessage.includes('set goal')) {
-      const goalMatch = message.match(/(?:add|set) goal[:\s]+(.+)/i);
-      if (goalMatch) {
-        return {
-          action: 'addGoal',
-          data: { goal: goalMatch[1].trim() }
-        };
-      }
+    
+    // Simple keyword detection for planning-related requests
+    const planningKeywords = [
+      'task', 'todo', 'plan', 'schedule', 'goal', 'reminder',
+      'add', 'create', 'make', 'set', 'complete', 'finish',
+      'today', 'tomorrow', 'week', 'daily'
+    ];
+    
+    const hasplanningKeyword = planningKeywords.some(keyword => 
+      lowerMessage.includes(keyword)
+    );
+    
+    if (hasplanningKeyword) {
+      console.log('✅ Detected planning-related request, letting LLM handle it');
+      return {
+        action: 'intelligentPlanningAssistant',
+        data: { message: message }
+      };
     }
 
     return null;

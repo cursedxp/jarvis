@@ -14,10 +14,17 @@ const taskSchema = z.object({
   tags: z.array(z.string()).optional()
 });
 
+const taskInputSchema = z.object({
+  title: z.string().min(1),
+  description: z.string().optional(),
+  priority: z.enum(['low', 'medium', 'high']).default('medium'),
+  estimatedDuration: z.number().optional(),
+  tags: z.array(z.string()).optional()
+});
+
 const dailyPlanSchema = z.object({
   title: z.string().optional(),
   goals: z.array(z.string()).optional(),
-  tasks: z.array(taskSchema).optional(),
   notes: z.string().optional(),
   mood: z.enum(['great', 'good', 'neutral', 'bad', 'terrible']).optional(),
   energyLevel: z.number().min(1).max(10).optional(),
@@ -140,7 +147,7 @@ export class PlanController {
         return res.status(400).json({ error: 'Invalid date format. Use YYYY-MM-DD' });
       }
 
-      const validatedTask = taskSchema.parse(req.body);
+      const validatedTask = taskInputSchema.parse(req.body);
       const plan = await planService.addTask(parsedDate, {
         ...validatedTask,
         completed: false

@@ -1,0 +1,23 @@
+#!/usr/bin/env sh
+
+echo "🚀 Running pre-push checks..."
+
+# Check if we're on main branch
+current_branch=$(git rev-parse --abbrev-ref HEAD)
+if [ "$current_branch" = "main" ]; then
+    echo "⚠️  Pushing to main branch - running comprehensive checks..."
+    
+    # Run build to ensure everything compiles
+    echo "🏗️  Building project..."
+    npm run build
+    
+    # Run full test suite
+    echo "🧪 Running full test suite..."
+    npm run test
+    
+    # Additional security checks could go here
+    echo "🔒 Running security checks..."
+    # npm audit --audit-level=moderate
+fi
+
+echo "✅ Pre-push checks completed successfully!"

@@ -1,0 +1,20 @@
+#!/usr/bin/env sh
+
+echo "🔍 Running pre-commit checks..."
+
+# Run lint-staged for staged files
+npx lint-staged
+
+# Run type checking across all workspaces
+echo "🔍 Type checking..."
+npm run typecheck
+
+# Run linting across all workspaces
+echo "🧹 Linting..."
+npm run lint
+
+# Run tests across all workspaces
+echo "🧪 Running tests..."
+npm run test
+
+echo "✅ Pre-commit checks completed successfully!"
