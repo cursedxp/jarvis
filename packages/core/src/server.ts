@@ -1,172 +1,141 @@
 import Fastify from 'fastify';
-import fastifyCors from '@fastify/cors';
 import { Server } from 'socket.io';
 import { Orchestrator } from './orchestrator/orchestrator';
 import { createLogger } from './utils/logger';
 import { TTSManager } from './tts-manager';
+
+// Import route modules
+import { healthRoutes } from './server/routes/health-routes';
+import { modelRoutes } from './server/routes/model-routes';
+import { ttsRoutes } from './server/routes/tts-routes';
+import { commandRoutes } from './server/routes/command-routes';
+
+// Import middleware
+import { setupCorsMiddleware } from './server/middleware/cors-middleware';
+import { setupLoggingMiddleware } from './server/middleware/logging-middleware';
 
 const logger = createLogger('server');
 
 interface ServerOptions {
   orchestrator: Orchestrator;
   port: number;
+  host?: string;
+  cors?: {
+    allowedOrigins?: string[];
+    allowCredentials?: boolean;
+  };
+  logging?: {
+    logLevel?: 'info' | 'debug' | 'warn' | 'error';
+    logBody?: boolean;
+  };
 }
 
 export async function createServer(options: ServerOptions) {
-  const { orchestrator, port } = options;
+  const { orchestrator, port, host = '0.0.0.0' } = options;
   
   const fastify = Fastify({
-    logger: false
+    logger: false, // We'll use our custom logging middleware
+    trustProxy: true, // For proper IP detection behind reverse proxy
+    bodyLimit: 1048576 // 1MB body limit
   });
   
-  // Register CORS for Next.js frontend
-  await fastify.register(fastifyCors, {
-    origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    credentials: true
+  // Setup middleware
+  await setupCorsMiddleware(fastify, {
+    allowedOrigins: options.cors?.allowedOrigins,
+    allowCredentials: options.cors?.allowCredentials
   });
   
+  await setupLoggingMiddleware(fastify, {
+    logLevel: options.logging?.logLevel || 'info',
+    logBody: options.logging?.logBody || false
+  });
+  
+  // Add manual error helpers since @fastify/sensible v6 requires Fastify v5
+  fastify.decorate('httpErrors', {
+    badRequest: (message?: string) => {
+      const error: any = new Error(message || 'Bad Request');
+      error.statusCode = 400;
+      return error;
+    },
+    notFound: (message?: string) => {
+      const error: any = new Error(message || 'Not Found');
+      error.statusCode = 404;
+      return error;
+    },
+    internalServerError: (message?: string) => {
+      const error: any = new Error(message || 'Internal Server Error');
+      error.statusCode = 500;
+      return error;
+    },
+    serviceUnavailable: (message?: string) => {
+      const error: any = new Error(message || 'Service Unavailable');
+      error.statusCode = 503;
+      return error;
+    }
+  });
   
   const io = new Server(fastify.server, {
     cors: {
-      origin: '*',
-      methods: ['GET', 'POST']
-    }
+      origin: options.cors?.allowedOrigins || ['http://localhost:3000', 'http://127.0.0.1:3000'],
+      methods: ['GET', 'POST'],
+      credentials: options.cors?.allowCredentials ?? true
+    },
+    transports: ['websocket', 'polling'],
+    pingTimeout: 60000,
+    pingInterval: 25000
   });
   
   // Initialize TTS Manager with Socket.IO for real-time events
   const ttsManager = new TTSManager(io);
   
-  fastify.get('/health', async () => {
-    return { status: 'healthy', timestamp: new Date().toISOString() };
+  // Register route modules
+  await fastify.register(healthRoutes, { 
+    orchestrator: orchestrator 
   });
   
-  fastify.post('/command', async (request) => {
-    const result = await orchestrator.handleCommand(request.body as any);
+  await fastify.register(modelRoutes, { 
+    orchestrator: orchestrator 
+  });
+  
+  await fastify.register(ttsRoutes, { 
+    ttsManager: ttsManager 
+  });
+  
+  await fastify.register(commandRoutes, { 
+    orchestrator: orchestrator,
+    ttsManager: ttsManager
+  });
+  
+  // Global error handler
+  fastify.setErrorHandler(async (error, request, reply) => {
+    logger.error('Global error handler triggered:', {
+      error: error.message,
+      stack: error.stack,
+      url: request.url,
+      method: request.method,
+      statusCode: error.statusCode || 500
+    });
     
-    // Don't auto-speak anymore - let frontend control TTS timing for proper animation sync
-    return { ...result, ttsMode: ttsManager.getTTSMode() };
-  });
-  
-  // Model management endpoints
-  fastify.get('/models', async () => {
-    const models = orchestrator.getAvailableModels();
-    const currentModel = orchestrator.getCurrentModel();
-    return { models, currentModel };
-  });
-  
-  fastify.post('/models/switch', async (request) => {
-    const { model } = request.body as any;
-    const success = await orchestrator.switchToModel(model);
-    return { 
-      success, 
-      model, 
-      message: success ? `Switched to ${model}` : `Failed to switch to ${model}` 
-    };
-  });
-  
-  fastify.get('/models/current', async () => {
-    const currentModel = orchestrator.getCurrentModel();
-    const modelInfo = orchestrator.getModelRegistry().getActiveModelInfo();
-    return { model: currentModel, info: modelInfo };
-  });
-  
-  fastify.post('/models/auto-select', async (request) => {
-    const { taskType } = request.body as any;
-    const recommendedModel = orchestrator.autoSelectModelForTask(taskType);
-    const switched = await orchestrator.switchToModel(recommendedModel);
-    return {
-      taskType,
-      model: recommendedModel,
-      switched,
-      message: `${switched ? 'Switched to' : 'Recommended'} ${recommendedModel} for ${taskType} tasks`
-    };
-  });
-
-  // TTS Control endpoints
-  fastify.post('/api/tts/speak', async (request) => {
-    const { text } = request.body as any;
+    const statusCode = error.statusCode || 500;
     
-    if (!text) {
-      return { success: false, message: 'No text provided' };
-    }
-    
-    try {
-      const startTime = Date.now();
-      await ttsManager.speak(text);
-      const endTime = Date.now();
-      const actualDuration = endTime - startTime;
-      logger.info(`Text spoken via Edge-TTS in ${actualDuration}ms`);
-      
-      return { 
-        success: true, 
-        ttsDuration: actualDuration,
-        ttsStartTime: startTime,
-        ttsEndTime: endTime,
-        message: 'TTS completed successfully'
-      };
-    } catch (error) {
-      logger.warn('TTS failed:', error);
-      return { 
-        success: false, 
-        ttsError: true,
-        message: 'TTS failed: ' + (error as Error).message
-      };
-    }
+    return reply.code(statusCode).send({
+      success: false,
+      error: error.message || 'Internal server error',
+      statusCode,
+      timestamp: new Date().toISOString(),
+      ...(process.env.NODE_ENV === 'development' && { stack: error.stack })
+    });
   });
-
-  fastify.post('/api/tts/stop', async () => {
-    try {
-      logger.info('🛑 Stop TTS request received');
-      ttsManager.stopSpeaking();
-      return { success: true, message: 'TTS stopped' };
-    } catch (error) {
-      logger.error('Failed to stop TTS:', error);
-      return { success: false, message: 'Failed to stop TTS' };
-    }
-  });
-
-  fastify.post('/api/tts/voice', async (request) => {
-    const { voice } = request.body as any;
-    try {
-      ttsManager.setVoice(voice);
-      return { success: true, voice, message: `Voice changed to ${voice}` };
-    } catch (error) {
-      return { success: false, message: 'Failed to change voice' };
-    }
-  });
-
-  fastify.get('/api/tts/voices', async () => {
-    return { 
-      voices: ttsManager.getAvailableVoices(),
-      mode: ttsManager.getTTSMode()
-    };
-  });
-
-  fastify.post('/api/tts/mode', async (request) => {
-    const { mode } = request.body as any;
-    try {
-      if (mode === 'system' || mode === 'edge') {
-        ttsManager.setTTSMode(mode);
-        return { 
-          success: true, 
-          mode,
-          voices: ttsManager.getAvailableVoices(),
-          message: `TTS mode set to ${mode === 'system' ? 'Browser TTS' : 'Edge-TTS'}` 
-        };
-      } else {
-        throw new Error('Invalid TTS mode. Use "system" or "edge".');
-      }
-    } catch (error) {
-      return { success: false, message: 'Failed to change TTS mode: ' + (error as Error).message };
-    }
-  });
-
-  fastify.get('/api/tts/mode', async () => {
-    return { 
-      mode: ttsManager.getTTSMode(),
-      voices: ttsManager.getAvailableVoices()
-    };
+  
+  // Catch-all for undefined routes
+  fastify.setNotFoundHandler(async (request, reply) => {
+    logger.warn(`Route not found: ${request.method} ${request.url}`);
+    return reply.code(404).send({
+      success: false,
+      error: 'Route not found',
+      message: `The requested endpoint ${request.method} ${request.url} does not exist`,
+      timestamp: new Date().toISOString()
+    });
   });
 
   
@@ -190,13 +159,38 @@ export async function createServer(options: ServerOptions) {
   
   return {
     start: async () => {
-      await fastify.listen({ port, host: '0.0.0.0' });
-      logger.info(`Server listening on port ${port}`);
+      try {
+        await fastify.listen({ port, host });
+        
+        logger.info(`🚀 Jarvis server started successfully!`);
+        logger.info(`   • HTTP server listening on ${host}:${port}`);
+        logger.info(`   • WebSocket server ready for real-time communication`);
+        logger.info(`   • TTS service initialized with mode: ${ttsManager.getTTSMode()}`);
+        logger.info(`   • Modular route handlers loaded`);
+        
+      } catch (error) {
+        logger.error('Failed to start server:', error);
+        throw error;
+      }
     },
     stop: async () => {
-      io.close();
-      await fastify.close();
+      try {
+        io.close();
+        await fastify.close();
+        logger.info('Server stopped successfully');
+      } catch (error) {
+        logger.error('Error stopping server:', error);
+        throw error;
+      }
     },
-    io: io  // Expose the Socket.IO instance
+    io: io,  // Expose the Socket.IO instance
+    getInfo: () => ({
+      port,
+      host,
+      ttsMode: ttsManager.getTTSMode(),
+      connectedClients: io.engine.clientsCount,
+      uptime: process.uptime(),
+      memoryUsage: process.memoryUsage()
+    })
   };
 }
