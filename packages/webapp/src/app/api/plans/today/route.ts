@@ -27,6 +27,11 @@ const TaskSchema = new mongoose.Schema({
   title: { type: String, required: true },
   description: String,
   completed: { type: Boolean, default: false },
+  status: {
+    type: String,
+    enum: ['todo', 'in-progress', 'done'],
+    default: 'todo'
+  },
   priority: { 
     type: String, 
     enum: ['low', 'medium', 'high'], 
@@ -73,6 +78,7 @@ export async function GET() {
         id: task.id,
         title: task.title,
         completed: task.completed,
+        status: task.status || 'todo',
         priority: task.priority || 'medium',
         description: task.description || ''
       }))
@@ -97,6 +103,7 @@ export async function POST(request: NextRequest) {
         id: Date.now().toString(),
         title: data.title,
         completed: false,
+        status: data.status || 'todo',
         priority: data.priority || 'medium',
         description: data.description || '',
         createdAt: new Date()
@@ -145,16 +152,18 @@ export async function PUT(request: NextRequest) {
     
     if (data.taskId) {
       // Update task in today's plan
+      const updateFields: any = { updatedAt: new Date() };
+      
+      if (data.completed !== undefined) updateFields['tasks.$.completed'] = data.completed;
+      if (data.status !== undefined) updateFields['tasks.$.status'] = data.status;
+      if (data.title !== undefined) updateFields['tasks.$.title'] = data.title;
+      if (data.description !== undefined) updateFields['tasks.$.description'] = data.description;
+      if (data.priority !== undefined) updateFields['tasks.$.priority'] = data.priority;
+      if (data.completed) updateFields['tasks.$.completedAt'] = new Date();
+      
       const result = await DailyPlan.findOneAndUpdate(
         { date: today, 'tasks.id': data.taskId },
-        { 
-          $set: {
-            'tasks.$.completed': data.completed ?? undefined,
-            'tasks.$.title': data.title ?? undefined,
-            'tasks.$.completedAt': data.completed ? new Date() : undefined,
-            updatedAt: new Date()
-          }
-        },
+        { $set: updateFields },
         { new: true }
       );
       
@@ -170,5 +179,38 @@ export async function PUT(request: NextRequest) {
   } catch (error) {
     console.error('Error updating task:', error);
     return NextResponse.json({ success: false, error: 'Failed to update task' }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    await connectDB();
+    
+    const url = new URL(request.url);
+    const taskId = url.searchParams.get('taskId');
+    const today = startOfDay(new Date());
+    
+    if (!taskId) {
+      return NextResponse.json({ success: false, error: 'Task ID required' }, { status: 400 });
+    }
+    
+    // Remove task from today's plan
+    const result = await DailyPlan.findOneAndUpdate(
+      { date: today },
+      { 
+        $pull: { tasks: { id: taskId } },
+        $set: { updatedAt: new Date() }
+      },
+      { new: true }
+    );
+    
+    if (result) {
+      return NextResponse.json({ success: true, message: 'Task deleted successfully' });
+    } else {
+      return NextResponse.json({ success: false, error: 'Task not found' }, { status: 404 });
+    }
+  } catch (error) {
+    console.error('Error deleting task:', error);
+    return NextResponse.json({ success: false, error: 'Failed to delete task' }, { status: 500 });
   }
 }

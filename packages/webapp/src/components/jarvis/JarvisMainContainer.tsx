@@ -29,6 +29,7 @@ export function JarvisMainContainer() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [showChatHistory, setShowChatHistory] = useState(false);
   const [showPlanningApp, setShowPlanningApp] = useState(false);
+  const [showKanbanApp, setShowKanbanApp] = useState(false);
   const [isVoiceEnabled, setIsVoiceEnabled] = useState(false);
   
   // Voice/TTS State
@@ -179,7 +180,14 @@ export function JarvisMainContainer() {
           startAudioLevelSimulation();
           
           speakText(result.content).catch(error => {
-            console.error('System TTS failed:', error);
+            // Only log error if it's not due to user stopping TTS
+            if (error && error.message !== 'Speech interrupted by user') {
+              console.error('System TTS failed:', error);
+            } else {
+              console.log('🛑 System TTS interrupted by user');
+            }
+            // Cleanup states - the TTS hook should have already cleaned them up,
+            // but this ensures consistency
             setVoiceState('idle');
             stopAudioLevelSimulation();
           });
@@ -227,8 +235,10 @@ export function JarvisMainContainer() {
   };
 
   const handleStopTTS = () => {
+    console.log('🛑 User stopped TTS - cleaning up states');
     stopTTSHook();
     stopAudioLevelSimulation();
+    setVoiceState('idle');
   };
 
   // Settings handlers
@@ -328,13 +338,25 @@ export function JarvisMainContainer() {
           onStopTTS={handleStopTTS}
         />
 
-        {/* Planning App Button - Bottom Right */}
-        <div className="absolute bottom-6 right-6 z-30">
+        {/* App Buttons - Bottom Right */}
+        <div className="absolute bottom-6 right-6 z-30 flex flex-col gap-3">
+          <Button
+            onClick={() => setShowKanbanApp(!showKanbanApp)}
+            variant="ghost"
+            size="sm"
+            className="text-cyan-400 hover:text-cyan-400 hover:bg-cyan-500/10 cursor-pointer p-3 rounded-full"
+            title="Kanban Board"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 002 2m0 0v10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2" />
+            </svg>
+          </Button>
           <Button
             onClick={() => setShowPlanningApp(!showPlanningApp)}
             variant="ghost"
             size="sm"
             className="text-cyan-400 hover:text-cyan-400 hover:bg-cyan-500/10 cursor-pointer p-3 rounded-full"
+            title="Planning App"
           >
             <Calendar className="w-5 h-5" />
           </Button>
@@ -352,6 +374,21 @@ export function JarvisMainContainer() {
             src="/planning"
             className="w-full h-full border-0"
             title="Planning App"
+          />
+        </FloatingWindow>
+
+        {/* Kanban Board Floating Window */}
+        <FloatingWindow
+          isOpen={showKanbanApp}
+          onClose={() => setShowKanbanApp(false)}
+          title="Kanban Board"
+          defaultWidth={1200}
+          defaultHeight={800}
+        >
+          <iframe
+            src="/kanban"
+            className="w-full h-full border-0"
+            title="Kanban Board"
           />
         </FloatingWindow>
       </div>

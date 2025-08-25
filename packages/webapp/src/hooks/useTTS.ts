@@ -13,11 +13,15 @@ interface UseTTSProps {
 export function useTTS({ voice, speechRate, ttsMode, onSpeakingChange, onStateChange }: UseTTSProps) {
   const [isSpeaking, setIsSpeaking] = useState(false)
   const speakingRef = useRef(false)
+  const currentUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null)
+  const wasCancelledRef = useRef(false)
 
   const speakText = useCallback((text: string): Promise<void> => {
     return new Promise((resolve, reject) => {
       if ('speechSynthesis' in window) {
+        wasCancelledRef.current = false
         const utterance = new SpeechSynthesisUtterance(text)
+        currentUtteranceRef.current = utterance
         
         // Configure utterance based on current settings
         const voices = window.speechSynthesis.getVoices()
@@ -46,7 +50,13 @@ export function useTTS({ voice, speechRate, ttsMode, onSpeakingChange, onStateCh
           speakingRef.current = isSpeakingState
           onSpeakingChange(isSpeakingState)
           onStateChange('idle')
-          resolve()
+          currentUtteranceRef.current = null
+          
+          if (wasCancelledRef.current) {
+            reject(new Error('Speech interrupted by user'))
+          } else {
+            resolve()
+          }
         }
         
         utterance.onerror = (error) => {
@@ -56,7 +66,13 @@ export function useTTS({ voice, speechRate, ttsMode, onSpeakingChange, onStateCh
           speakingRef.current = isSpeakingState
           onSpeakingChange(isSpeakingState)
           onStateChange('idle')
-          reject(error)
+          currentUtteranceRef.current = null
+          
+          if (wasCancelledRef.current) {
+            reject(new Error('Speech interrupted by user'))
+          } else {
+            reject(error || new Error('Speech synthesis error'))
+          }
         }
         
         // CRITICAL FIX: Delay TTS start to ensure animation is ready
@@ -75,6 +91,9 @@ export function useTTS({ voice, speechRate, ttsMode, onSpeakingChange, onStateCh
   const stopTTS = useCallback(() => {
     console.log('🛑 Stopping TTS - mode:', ttsMode)
     
+    // Mark as cancelled before stopping
+    wasCancelledRef.current = true
+    
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel()
     }
@@ -85,6 +104,7 @@ export function useTTS({ voice, speechRate, ttsMode, onSpeakingChange, onStateCh
     speakingRef.current = isSpeakingState
     onSpeakingChange(isSpeakingState)
     onStateChange('idle')
+    currentUtteranceRef.current = null
     
     if (ttsMode === 'edge') {
       fetch('http://localhost:7777/api/tts/stop', { method: 'POST' })
