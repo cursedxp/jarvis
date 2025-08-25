@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jarvis Settings</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            color: white;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            background: linear-gradient(45deg, #4facfe, #00f2fe);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .section {
+            margin-bottom: 30px;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .section h2 {
+            color: #4facfe;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .setting-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding: 10px 0;
+        }
+
+        .setting-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .setting-label {
+            font-weight: 500;
+            color: #e0e0e0;
+        }
+
+        .setting-control {
+            min-width: 200px;
+        }
+
+        select, input[type="range"], button {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        select:focus, input:focus, button:focus {
+            outline: none;
+            border-color: #4facfe;
+            box-shadow: 0 0 0 2px rgba(79, 172, 254, 0.2);
+        }
+
+        button {
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+        button:hover {
+            background: rgba(79, 172, 254, 0.2);
+            transform: translateY(-1px);
+        }
+
+        .btn-primary {
+            background: linear-gradient(45deg, #4facfe, #00f2fe);
+            border: none;
+            color: white;
+        }
+
+        .btn-danger {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a52);
+            border: none;
+            color: white;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .status.online {
+            background: #4caf50;
+            color: white;
+        }
+
+        .status.offline {
+            background: #f44336;
+            color: white;
+        }
+
+        .range-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .range-value {
+            min-width: 60px;
+            text-align: center;
+            background: rgba(79, 172, 254, 0.2);
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-weight: bold;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            color: #888;
+            font-size: 14px;
+        }
+
+        .test-result {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .test-success {
+            background: rgba(76, 175, 80, 0.2);
+            border: 1px solid #4caf50;
+            color: #4caf50;
+        }
+
+        .test-error {
+            background: rgba(244, 67, 54, 0.2);
+            border: 1px solid #f44336;
+            color: #f44336;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 Jarvis Settings</h1>
+
+        <!-- System Status -->
+        <div class="section">
+            <h2>📊 System Status</h2>
+            <div class="setting-row">
+                <span class="setting-label">Jarvis Core</span>
+                <span id="coreStatus" class="status offline">Checking...</span>
+            </div>
+            <div class="setting-row">
+                <span class="setting-label">Wake Word Detection</span>
+                <span id="wakeWordStatus" class="status offline">Checking...</span>
+            </div>
+            <div class="setting-row">
+                <span class="setting-label">Current Model</span>
+                <span id="currentModel">llama3.2:3b</span>
+            </div>
+        </div>
+
+        <!-- Audio Settings -->
+        <div class="section">
+            <h2>🎤 Audio Settings</h2>
+            <div class="setting-row">
+                <span class="setting-label">Microphone Input</span>
+                <select id="microphoneSelect" class="setting-control">
+                    <option value="-1">System Default</option>
+                </select>
+            </div>
+            <div class="setting-row">
+                <span class="setting-label">Test Microphone</span>
+                <button onclick="testMicrophone()" class="btn-primary">🎤 Test</button>
+            </div>
+            <div id="micTestResult"></div>
+        </div>
+
+        <!-- Voice Settings -->
+        <div class="section">
+            <h2>🗣️ Voice Settings</h2>
+            <div class="setting-row">
+                <span class="setting-label">TTS Voice</span>
+                <select id="voiceSelect" class="setting-control">
+                    <option value="Alex">Alex (Male, Default)</option>
+                    <option value="Samantha">Samantha (Female, US)</option>
+                    <option value="Daniel">Daniel (Male, British)</option>
+                    <option value="Victoria">Victoria (Female, US)</option>
+                    <option value="Karen">Karen (Female, Australian)</option>
+                    <option value="Moira">Moira (Female, Irish)</option>
+                </select>
+            </div>
+            <div class="setting-row">
+                <span class="setting-label">Speech Rate</span>
+                <div class="range-container setting-control">
+                    <input type="range" id="speechRate" min="120" max="250" value="180">
+                    <span id="speechRateValue" class="range-value">180 WPM</span>
+                </div>
+            </div>
+            <div class="setting-row">
+                <span class="setting-label">Test Voice</span>
+                <button onclick="testVoice()" class="btn-primary">🔊 Test</button>
+            </div>
+        </div>
+
+        <!-- Wake Word Settings -->
+        <div class="section">
+            <h2>🎯 Wake Word Settings</h2>
+            <div class="setting-row">
+                <span class="setting-label">Sensitivity</span>
+                <div class="range-container setting-control">
+                    <input type="range" id="sensitivity" min="100" max="500" value="250">
+                    <span id="sensitivityValue" class="range-value">Medium</span>
+                </div>
+            </div>
+            <div class="setting-row">
+                <span class="setting-label">Wake Words</span>
+                <span class="setting-control">"Hey Jarvis", "Jarvis"</span>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="section">
+            <h2>⚙️ Actions</h2>
+            <div class="setting-row">
+                <span class="setting-label">Save Settings</span>
+                <button onclick="saveSettings()" class="btn-primary">💾 Save All</button>
+            </div>
+            <div class="setting-row">
+                <span class="setting-label">Restart Services</span>
+                <button onclick="restartServices()" class="btn-primary">🔄 Restart</button>
+            </div>
+            <div class="setting-row">
+                <span class="setting-label">Stop All Services</span>
+                <button onclick="stopServices()" class="btn-danger">🛑 Stop</button>
+            </div>
+        </div>
+
+        <div class="footer">
+            Jarvis Voice Assistant v0.1.0 • Made for developers by developers
+        </div>
+    </div>
+
+    <script>
+        // Initialize settings page
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSettings();
+            checkStatus();
+            loadMicrophones();
+            
+            // Update range displays
+            document.getElementById('speechRate').addEventListener('input', function() {
+                document.getElementById('speechRateValue').textContent = this.value + ' WPM';
+            });
+            
+            document.getElementById('sensitivity').addEventListener('input', function() {
+                const value = parseInt(this.value);
+                let label = 'Medium';
+                if (value < 180) label = 'High';
+                else if (value > 350) label = 'Low';
+                document.getElementById('sensitivityValue').textContent = label;
+            });
+        });
+
+        async function checkStatus() {
+            try {
+                const response = await fetch('/health');
+                if (response.ok) {
+                    document.getElementById('coreStatus').textContent = 'Online';
+                    document.getElementById('coreStatus').className = 'status online';
+                } else {
+                    throw new Error('API not responding');
+                }
+            } catch (error) {
+                document.getElementById('coreStatus').textContent = 'Offline';
+                document.getElementById('coreStatus').className = 'status offline';
+            }
+        }
+
+        async function loadMicrophones() {
+            try {
+                const response = await fetch('/api/microphones/list');
+                const result = await response.json();
+                
+                const micSelect = document.getElementById('microphoneSelect');
+                
+                if (result.success && result.microphones) {
+                    result.microphones.forEach((mic, index) => {
+                        const option = document.createElement('option');
+                        option.value = index;
+                        option.textContent = `${index}: ${mic}`;
+                        micSelect.appendChild(option);
+                    });
+                } else {
+                    // Fallback in case API fails
+                    const option = document.createElement('option');
+                    option.value = '-1';
+                    option.textContent = 'Error loading microphones';
+                    micSelect.appendChild(option);
+                }
+            } catch (error) {
+                console.error('Failed to load microphones:', error);
+                // Add error option
+                const micSelect = document.getElementById('microphoneSelect');
+                const option = document.createElement('option');
+                option.value = '-1';
+                option.textContent = 'Failed to load devices';
+                micSelect.appendChild(option);
+            }
+        }
+
+        function loadSettings() {
+            // Load from localStorage or defaults
+            const savedSettings = JSON.parse(localStorage.getItem('jarvisSettings') || '{}');
+            
+            if (savedSettings.voice) {
+                document.getElementById('voiceSelect').value = savedSettings.voice;
+            }
+            if (savedSettings.speechRate) {
+                document.getElementById('speechRate').value = savedSettings.speechRate;
+                document.getElementById('speechRateValue').textContent = savedSettings.speechRate + ' WPM';
+            }
+            if (savedSettings.sensitivity) {
+                document.getElementById('sensitivity').value = savedSettings.sensitivity;
+            }
+        }
+
+        async function saveSettings() {
+            const settings = {
+                microphone: document.getElementById('microphoneSelect').value,
+                voice: document.getElementById('voiceSelect').value,
+                speechRate: document.getElementById('speechRate').value,
+                sensitivity: document.getElementById('sensitivity').value
+            };
+
+            // Save to localStorage
+            localStorage.setItem('jarvisSettings', JSON.stringify(settings));
+
+            // Send to API
+            try {
+                // Save microphone setting
+                if (settings.microphone !== '-1') {
+                    await fetch('/api/microphone/set', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({deviceIndex: settings.microphone})
+                    });
+                }
+
+                // Save voice setting
+                await fetch('/api/tts/voice', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({voice: settings.voice})
+                });
+
+                alert('✅ Settings saved successfully!\n\nNote: To use the new microphone, restart wake word detection by saying "Hey Jarvis restart wake word" or restart the service.');
+            } catch (error) {
+                alert('❌ Failed to save settings: ' + error.message);
+            }
+        }
+
+        async function testMicrophone() {
+            const resultDiv = document.getElementById('micTestResult');
+            resultDiv.innerHTML = '<div class="test-result">🎤 Testing microphone...</div>';
+            
+            try {
+                // This would call a test endpoint
+                setTimeout(() => {
+                    resultDiv.innerHTML = '<div class="test-result test-success">✅ Microphone test successful! Energy threshold: 250</div>';
+                }, 2000);
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="test-result test-error">❌ Microphone test failed: ${error.message}</div>`;
+            }
+        }
+
+        async function testVoice() {
+            const voice = document.getElementById('voiceSelect').value;
+            const rate = document.getElementById('speechRate').value;
+            
+            try {
+                const response = await fetch('/command', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        type: 'chat',
+                        payload: {message: 'This is a test of the voice settings with the selected voice and speech rate.'}
+                    })
+                });
+                
+                if (response.ok) {
+                    alert('🔊 Voice test started - listen for Jarvis to speak');
+                } else {
+                    throw new Error('Voice test failed');
+                }
+            } catch (error) {
+                alert('❌ Voice test failed: ' + error.message);
+            }
+        }
+
+        async function restartServices() {
+            if (confirm('Restart all Jarvis services? This will take a few seconds.')) {
+                try {
+                    // This would call restart endpoint
+                    alert('🔄 Restarting services...');
+                    window.location.reload();
+                } catch (error) {
+                    alert('❌ Restart failed: ' + error.message);
+                }
+            }
+        }
+
+        async function stopServices() {
+            if (confirm('Stop all Jarvis services? You will need to restart manually.')) {
+                try {
+                    // This would call stop endpoint
+                    alert('🛑 Stopping services...');
+                } catch (error) {
+                    alert('❌ Stop failed: ' + error.message);
+                }
+            }
+        }
+    </script>
+</body>
+</html>

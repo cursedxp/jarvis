@@ -1,0 +1,24 @@
+Mode,Time_ms,Event,Component,Status,Notes
+System_TTS,0,User stops talking,Frontend,idle,Perfect working flow
+System_TTS,500,API Response arrives,Frontend,processing_complete,
+System_TTS,500,Animation starts,Frontend Animation,speaking,
+System_TTS,600,Browser TTS starts,System Audio,speaking,Perfect sync - 100ms delay
+System_TTS,5000,TTS & Animation end,Both,idle,Synchronized completion
+
+Edge_TTS_Current,0,User stops talking,Frontend,idle,Current problematic flow  
+Edge_TTS_Current,1000,API Response arrives,Frontend,processing_complete,
+Edge_TTS_Current,1000,TTS Request sent to server,Frontend → Server,tts_requesting,
+Edge_TTS_Current,1000,🎤 Edge TTS generation starts,Server,generating,File generation phase - 4 seconds
+Edge_TTS_Current,1800,🎬 Animation starts,Frontend Animation,speaking,TOO EARLY! Audio not ready yet
+Edge_TTS_Current,5000,🎵 Audio generation complete,Server,generation_complete,
+Edge_TTS_Current,5000,🔊 afplay starts audio,System Audio,speaking,PROBLEM: Animation started 3200ms ago!
+Edge_TTS_Current,10000,🔚 Audio playback finished,System Audio,idle,
+Edge_TTS_Current,10300,Animation stops,Frontend Animation,idle,
+
+Problem_Analysis,,,,,
+Sync_Gap,3200,milliseconds,,,Animation vs Audio start time difference
+Edge_TTS_Generation,4000,milliseconds,,,Time to generate audio file
+Current_Animation_Delay,800,milliseconds,,,Current hardcoded delay
+Required_Animation_Delay,4000,milliseconds,,,Delay needed for perfect sync
+System_TTS_Accuracy,95,%,,,Current sync accuracy for System TTS
+Edge_TTS_Accuracy,30,%,,,Current sync accuracy for Edge TTS

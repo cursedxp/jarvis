@@ -1,0 +1,54 @@
+{
+  "models": [
+    {
+      "id": "gpt-4",
+      "name": "GPT-4",
+      "provider": "openai",
+      "maxTokens": 8192,
+      "costPer1kTokens": {
+        "input": 0.03,
+        "output": 0.06
+      },
+      "capabilities": ["code", "chat", "analysis", "refactoring"]
+    },
+    {
+      "id": "gpt-3.5-turbo",
+      "name": "GPT-3.5 Turbo",
+      "provider": "openai",
+      "maxTokens": 4096,
+      "costPer1kTokens": {
+        "input": 0.001,
+        "output": 0.002
+      },
+      "capabilities": ["code", "chat", "analysis"]
+    },
+    {
+      "id": "claude-3-opus-20240229",
+      "name": "Claude 3 Opus",
+      "provider": "anthropic",
+      "maxTokens": 200000,
+      "costPer1kTokens": {
+        "input": 0.015,
+        "output": 0.075
+      },
+      "capabilities": ["code", "chat", "analysis", "refactoring", "long-context"]
+    },
+    {
+      "id": "claude-3-sonnet-20240229",
+      "name": "Claude 3 Sonnet",
+      "provider": "anthropic",
+      "maxTokens": 200000,
+      "costPer1kTokens": {
+        "input": 0.003,
+        "output": 0.015
+      },
+      "capabilities": ["code", "chat", "analysis", "refactoring", "long-context"]
+    }
+  ],
+  "routing": {
+    "explain": ["gpt-3.5-turbo", "claude-3-sonnet-20240229"],
+    "refactor": ["gpt-4", "claude-3-opus-20240229"],
+    "test": ["gpt-4", "claude-3-sonnet-20240229"],
+    "chat": ["gpt-3.5-turbo", "claude-3-sonnet-20240229"]
+  }
+}

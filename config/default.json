@@ -1,0 +1,42 @@
+{
+  "core": {
+    "port": 7777,
+    "host": "0.0.0.0",
+    "maxRequestSize": "10mb",
+    "timeout": 30000
+  },
+  "voice": {
+    "wakeWord": "hey jarvis",
+    "language": "en-US",
+    "sttProvider": "whisper",
+    "ttsProvider": "edge-tts",
+    "audioSampleRate": 16000,
+    "silenceThreshold": 2000
+  },
+  "llm": {
+    "defaultProvider": "openai",
+    "maxTokens": 2000,
+    "temperature": 0.7,
+    "streamResponses": true
+  },
+  "security": {
+    "allowedPackages": [
+      "lodash",
+      "axios",
+      "express",
+      "react",
+      "vue",
+      "angular",
+      "@types/*"
+    ],
+    "maxPackageSize": 50000000,
+    "requireApproval": true
+  },
+  "features": {
+    "mentorMode": true,
+    "autoComplete": true,
+    "voiceActivation": true,
+    "semanticSearch": false,
+    "rag": false
+  }
+}

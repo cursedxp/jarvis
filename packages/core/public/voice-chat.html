@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jarvis - Voice Chat</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: radial-gradient(circle at center, #0c0c0c 0%, #1a1a2e 50%, #16213e 100%);
+            color: #00ffff;
+            font-family: 'Courier New', monospace;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .header {
+            padding: 20px;
+            text-align: center;
+            border-bottom: 2px solid #00ffff;
+            background: rgba(0, 0, 0, 0.5);
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            text-shadow: 0 0 20px #00ffff;
+            margin-bottom: 10px;
+        }
+        
+        .status {
+            font-size: 0.9em;
+            opacity: 0.8;
+            margin: 5px 0;
+        }
+        
+        .voice-controls {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            align-items: center;
+            margin: 15px 0;
+        }
+        
+        .voice-btn {
+            padding: 15px 30px;
+            border: 2px solid #00ffff;
+            background: transparent;
+            color: #00ffff;
+            border-radius: 50px;
+            font-family: inherit;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .voice-btn:hover {
+            background: #00ffff;
+            color: #0c0c0c;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+        }
+        
+        .voice-btn.active {
+            background: #00ffff;
+            color: #0c0c0c;
+            animation: pulse 2s infinite;
+        }
+        
+        .voice-btn.speaking {
+            background: #ff6b35;
+            border-color: #ff6b35;
+            color: white;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        
+        .conversation {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .message {
+            max-width: 80%;
+            padding: 15px 20px;
+            border-radius: 20px;
+            position: relative;
+            word-wrap: break-word;
+        }
+        
+        .message.user {
+            background: rgba(0, 255, 255, 0.15);
+            border: 1px solid #00ffff44;
+            margin-left: auto;
+            border-bottom-right-radius: 5px;
+        }
+        
+        .message.jarvis {
+            background: rgba(0, 150, 255, 0.15);
+            border: 1px solid #0096ff44;
+            margin-right: auto;
+            border-bottom-left-radius: 5px;
+        }
+        
+        .message .sender {
+            font-weight: bold;
+            font-size: 0.8em;
+            opacity: 0.8;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .message .content {
+            line-height: 1.5;
+        }
+        
+        .message .timestamp {
+            font-size: 0.7em;
+            opacity: 0.5;
+            margin-top: 8px;
+        }
+        
+        .listening-indicator {
+            text-align: center;
+            padding: 10px;
+            font-size: 0.9em;
+            opacity: 0.7;
+            display: none;
+        }
+        
+        .listening-indicator.active {
+            display: block;
+            animation: pulse 1.5s infinite;
+        }
+        
+        .voice-wave {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 3px;
+            margin: 10px 0;
+        }
+        
+        .wave-bar {
+            width: 3px;
+            height: 20px;
+            background: #00ffff;
+            animation: wave 1.2s infinite ease-in-out;
+        }
+        
+        .wave-bar:nth-child(2) { animation-delay: -1.1s; }
+        .wave-bar:nth-child(3) { animation-delay: -1.0s; }
+        .wave-bar:nth-child(4) { animation-delay: -0.9s; }
+        .wave-bar:nth-child(5) { animation-delay: -0.8s; }
+        
+        @keyframes wave {
+            0%, 40%, 100% { transform: scaleY(0.4); }
+            20% { transform: scaleY(1.0); }
+        }
+        
+        .controls {
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.5);
+            border-top: 1px solid #00ffff44;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .controls select, .controls input {
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid #00ffff44;
+            color: #00ffff;
+            padding: 8px 12px;
+            border-radius: 5px;
+            font-family: inherit;
+        }
+        
+        .controls label {
+            font-size: 0.8em;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎙️ JARVIS VOICE CHAT</h1>
+        <div class="status" id="status">Initializing...</div>
+        
+        <div class="voice-controls">
+            <button class="voice-btn" id="startListening">
+                🎤 Start Listening
+            </button>
+            <button class="voice-btn" id="stopListening" style="display: none;">
+                ⏹️ Stop Listening
+            </button>
+            <button class="voice-btn" id="stopSpeaking">
+                🔇 Stop Speaking
+            </button>
+        </div>
+    </div>
+    
+    <div class="listening-indicator" id="listeningIndicator">
+        🎧 Listening for your voice...
+        <div class="voice-wave">
+            <div class="wave-bar"></div>
+            <div class="wave-bar"></div>
+            <div class="wave-bar"></div>
+            <div class="wave-bar"></div>
+            <div class="wave-bar"></div>
+        </div>
+        <small>Speak naturally - I'll interrupt myself if you start talking</small>
+    </div>
+    
+    <div class="conversation" id="conversation">
+        <div class="message jarvis">
+            <div class="sender">Jarvis</div>
+            <div class="content">Hello! I'm your voice-first AI assistant. Click "Start Listening" and I'll listen continuously. You can interrupt me anytime by speaking - just like a real conversation!</div>
+            <div class="timestamp">Ready to chat</div>
+        </div>
+    </div>
+    
+    <div class="controls">
+        <label>Voice:</label>
+        <select id="voiceSelect">
+            <option value="en-US-AriaNeural">Aria (Female, News)</option>
+            <option value="en-US-AndrewNeural">Andrew (Male, Conversation)</option>
+            <option value="en-US-AvaNeural">Ava (Female, Conversation)</option>
+            <option value="en-US-BrianNeural">Brian (Male, Conversation)</option>
+            <option value="en-US-EmmaNeural">Emma (Female, Conversation)</option>
+            <option value="en-US-JennyNeural">Jenny (Female, Assistant)</option>
+            <option value="en-GB-RyanNeural">Ryan (Male, British)</option>
+        </select>
+        
+        <label>Auto-interrupt:</label>
+        <input type="checkbox" id="autoInterrupt" checked>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:7777';
+        
+        let recognition;
+        let synthesis = window.speechSynthesis;
+        let isListening = false;
+        let isSpeaking = false;
+        let currentUtterance = null;
+        let interruptionEnabled = true;
+        let conversationActive = false;
+
+        // Elements
+        const status = document.getElementById('status');
+        const conversation = document.getElementById('conversation');
+        const startBtn = document.getElementById('startListening');
+        const stopBtn = document.getElementById('stopListening');
+        const stopSpeakingBtn = document.getElementById('stopSpeaking');
+        const listeningIndicator = document.getElementById('listeningIndicator');
+        const voiceSelect = document.getElementById('voiceSelect');
+        const autoInterruptCheck = document.getElementById('autoInterrupt');
+
+        // Initialize
+        async function init() {
+            // Check browser support
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                status.textContent = '❌ Speech recognition not supported in this browser';
+                status.style.color = '#ff6b6b';
+                return;
+            }
+
+            // Setup speech recognition
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.lang = 'en-US';
+
+            recognition.onstart = () => {
+                isListening = true;
+                updateUI();
+                addMessage('system', 'System', '🎤 Started listening...', true);
+            };
+
+            recognition.onresult = (event) => {
+                let finalTranscript = '';
+                let interimTranscript = '';
+
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const transcript = event.results[i][0].transcript;
+                    if (event.results[i].isFinal) {
+                        finalTranscript += transcript;
+                    } else {
+                        interimTranscript += transcript;
+                    }
+                }
+
+                if (finalTranscript) {
+                    handleUserSpeech(finalTranscript.trim());
+                }
+
+                // Show interim results
+                if (interimTranscript) {
+                    updateListeningIndicator(`Hearing: "${interimTranscript}"`);
+                }
+            };
+
+            recognition.onerror = (event) => {
+                console.error('Speech recognition error:', event.error);
+                if (event.error === 'no-speech') {
+                    // Restart listening if no speech detected
+                    setTimeout(() => {
+                        if (conversationActive && !isSpeaking) {
+                            recognition.start();
+                        }
+                    }, 1000);
+                }
+            };
+
+            recognition.onend = () => {
+                if (conversationActive && !isSpeaking) {
+                    // Auto-restart listening
+                    setTimeout(() => {
+                        try {
+                            recognition.start();
+                        } catch (e) {
+                            console.log('Recognition restart failed:', e);
+                        }
+                    }, 500);
+                } else {
+                    isListening = false;
+                    updateUI();
+                }
+            };
+
+            // Check API connection
+            try {
+                const response = await fetch(`${API_BASE}/health`);
+                if (response.ok) {
+                    status.textContent = '✅ Connected - Ready for voice chat';
+                } else {
+                    throw new Error('Health check failed');
+                }
+            } catch (error) {
+                status.textContent = '❌ Cannot connect to Jarvis server';
+                status.style.color = '#ff6b6b';
+            }
+        }
+
+        // Handle user speech
+        async function handleUserSpeech(text) {
+            if (!text || text.length < 2) return;
+
+            addMessage('user', 'You', text);
+
+            // Interrupt Jarvis if speaking
+            if (isSpeaking && autoInterruptCheck.checked) {
+                stopJarvisSpeaking();
+            }
+
+            // Send to Jarvis
+            try {
+                const response = await fetch(`${API_BASE}/command`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        type: 'chat',
+                        payload: { message: text }
+                    })
+                });
+
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                
+                const data = await response.json();
+                
+                // Add Jarvis response and speak it
+                const modelInfo = data.model ? ` (${data.model})` : '';
+                addMessage('jarvis', `Jarvis${modelInfo}`, data.content);
+                
+                // Speak response (server handles TTS, but we can also use browser as backup)
+                
+            } catch (error) {
+                addMessage('jarvis', 'Jarvis - ERROR', `Sorry, I encountered an error: ${error.message}`);
+            }
+        }
+
+        // Add message to conversation
+        function addMessage(type, sender, content, isSystem = false) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+            
+            const timestamp = new Date().toLocaleTimeString();
+            
+            messageDiv.innerHTML = `
+                <div class="sender">${sender}</div>
+                <div class="content">${content}</div>
+                <div class="timestamp">${timestamp}</div>
+            `;
+            
+            conversation.appendChild(messageDiv);
+            conversation.scrollTop = conversation.scrollHeight;
+
+            // Auto-remove system messages after 3 seconds
+            if (isSystem) {
+                setTimeout(() => {
+                    if (messageDiv.parentNode) {
+                        messageDiv.remove();
+                    }
+                }, 3000);
+            }
+        }
+
+        // Stop Jarvis speaking
+        function stopJarvisSpeaking() {
+            if (isSpeaking) {
+                synthesis.cancel();
+                if (currentUtterance) {
+                    currentUtterance = null;
+                }
+                isSpeaking = false;
+                
+                // Also stop server-side TTS
+                fetch('/api/tts/stop', { method: 'POST' }).catch(() => {});
+                
+                updateUI();
+                addMessage('system', 'System', '🔇 Stopped speaking', true);
+            }
+        }
+
+        // Update UI state
+        function updateUI() {
+            startBtn.style.display = isListening ? 'none' : 'block';
+            stopBtn.style.display = isListening ? 'block' : 'none';
+            
+            if (isListening) {
+                listeningIndicator.classList.add('active');
+                startBtn.classList.add('active');
+            } else {
+                listeningIndicator.classList.remove('active');
+                startBtn.classList.remove('active');
+            }
+
+            stopSpeakingBtn.classList.toggle('speaking', isSpeaking);
+        }
+
+        // Update listening indicator
+        function updateListeningIndicator(text) {
+            if (isListening) {
+                listeningIndicator.innerHTML = `
+                    🎧 ${text}
+                    <div class="voice-wave">
+                        <div class="wave-bar"></div>
+                        <div class="wave-bar"></div>
+                        <div class="wave-bar"></div>
+                        <div class="wave-bar"></div>
+                        <div class="wave-bar"></div>
+                    </div>
+                    <small>Keep talking naturally - I'm listening</small>
+                `;
+                
+                // Reset after delay
+                setTimeout(() => {
+                    if (isListening) {
+                        listeningIndicator.innerHTML = `
+                            🎧 Listening for your voice...
+                            <div class="voice-wave">
+                                <div class="wave-bar"></div>
+                                <div class="wave-bar"></div>
+                                <div class="wave-bar"></div>
+                                <div class="wave-bar"></div>
+                                <div class="wave-bar"></div>
+                            </div>
+                            <small>Speak naturally - I'll interrupt myself if you start talking</small>
+                        `;
+                    }
+                }, 2000);
+            }
+        }
+
+        // Event listeners
+        startBtn.addEventListener('click', () => {
+            if (!isListening) {
+                conversationActive = true;
+                try {
+                    recognition.start();
+                } catch (e) {
+                    console.error('Failed to start recognition:', e);
+                }
+            }
+        });
+
+        stopBtn.addEventListener('click', () => {
+            conversationActive = false;
+            if (isListening) {
+                recognition.stop();
+            }
+        });
+
+        stopSpeakingBtn.addEventListener('click', stopJarvisSpeaking);
+
+        voiceSelect.addEventListener('change', async () => {
+            const selectedVoice = voiceSelect.value;
+            try {
+                await fetch('/api/tts/voice', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ voice: selectedVoice })
+                });
+            } catch (error) {
+                console.error('Failed to change voice:', error);
+            }
+        });
+
+        // Initialize on load
+        init();
+    </script>
+</body>
+</html>
