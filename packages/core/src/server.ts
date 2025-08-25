@@ -117,9 +117,11 @@ export async function createServer(options: ServerOptions) {
 
   fastify.post('/api/tts/stop', async () => {
     try {
+      logger.info('🛑 Stop TTS request received');
       ttsManager.stopSpeaking();
       return { success: true, message: 'TTS stopped' };
     } catch (error) {
+      logger.error('Failed to stop TTS:', error);
       return { success: false, message: 'Failed to stop TTS' };
     }
   });
@@ -194,6 +196,7 @@ export async function createServer(options: ServerOptions) {
     stop: async () => {
       io.close();
       await fastify.close();
-    }
+    },
+    io: io  // Expose the Socket.IO instance
   };
 }

@@ -10,7 +10,11 @@ import { AnimatedBlob } from '@/components/jarvis/AnimatedBlob'
 import { VoiceControls } from '@/components/jarvis/VoiceControls'
 import { SettingsDialog } from '@/components/jarvis/SettingsDialog'
 import { ChatHistory } from '@/components/jarvis/ChatHistory'
-import { FloatingWindow } from '@/components/jarvis/FloatingWindow'
+import dynamic from 'next/dynamic'
+
+const FloatingWindow = dynamic(() => import('@/components/jarvis/FloatingWindow').then(mod => ({ default: mod.FloatingWindow })), { 
+  ssr: false 
+})
 
 // Custom hooks
 import { useVoiceRecognition } from '@/hooks/useVoiceRecognition'
@@ -196,6 +200,26 @@ export default function JarvisMinimal() {
     setActiveConversation(newConv.id)
   }
 
+  // Clear chat history
+  const clearChatHistory = () => {
+    if (activeConversation) {
+      setConversations(prev => {
+        const updated = prev.map(conv => 
+          conv.id === activeConversation 
+            ? { 
+                ...conv, 
+                messages: [],
+                title: 'New Chat',
+                updatedAt: new Date()
+              }
+            : conv
+        )
+        localStorage.setItem('jarvis_conversations', JSON.stringify(updated))
+        return updated
+      })
+    }
+  }
+
   // Add message to conversation
   const addMessageToConversation = (role: 'user' | 'assistant', content: string, model?: string, taskType?: string) => {
     const message: Message = {
@@ -206,29 +230,26 @@ export default function JarvisMinimal() {
       taskType
     }
     
-    setConversations(prev => prev.map(conv => 
-      conv.id === activeConversation 
-        ? { 
-            ...conv, 
-            messages: [...conv.messages, message],
-            title: conv.messages.length === 0 ? content.slice(0, 30) + '...' : conv.title,
-            updatedAt: new Date()
-          }
-        : conv
-    ))
+    console.log('📝 Adding message to conversation:', { role, content: content.substring(0, 50) + '...', activeConversation })
     
-    // Save to localStorage
-    const updated = conversations.map(conv => 
-      conv.id === activeConversation 
-        ? { 
-            ...conv, 
-            messages: [...conv.messages, message],
-            updatedAt: new Date()
-          }
-        : conv
-    )
-    setConversations(updated)
-    localStorage.setItem('jarvis_conversations', JSON.stringify(updated))
+    setConversations(prev => {
+      const updated = prev.map(conv => 
+        conv.id === activeConversation 
+          ? { 
+              ...conv, 
+              messages: [...conv.messages, message],
+              title: conv.messages.length === 0 ? content.slice(0, 30) + '...' : conv.title,
+              updatedAt: new Date()
+            }
+          : conv
+      )
+      console.log('📚 Updated conversations:', updated.length, 'conversations')
+      
+      // Save to localStorage with the updated state
+      localStorage.setItem('jarvis_conversations', JSON.stringify(updated))
+      
+      return updated
+    })
   }
 
   // Send message to API
@@ -240,6 +261,7 @@ export default function JarvisMinimal() {
       return
     }
     
+    console.log('💬 Adding user message to conversation:', text)
     addMessageToConversation('user', text)
     
     // Set processing state for voice inputs
@@ -388,6 +410,7 @@ export default function JarvisMinimal() {
         isVisible={showChatHistory}
         onClose={() => setShowChatHistory(false)}
         messages={getCurrentMessages()}
+        onClearHistory={clearChatHistory}
       />
 
       {/* Main Interface */}
@@ -473,11 +496,11 @@ export default function JarvisMinimal() {
           isOpen={showPlanningApp}
           onClose={() => setShowPlanningApp(false)}
           title="Planning App"
-          defaultWidth={400}
+          defaultWidth={800}
           defaultHeight={600}
         >
           <iframe
-            src="http://localhost:8080"
+            src="/planning"
             className="w-full h-full border-0"
             title="Planning App"
           />

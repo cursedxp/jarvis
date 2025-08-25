@@ -8,6 +8,7 @@ import { ModelRegistry } from '../services/model-registry';
 export interface OrchestratorConfig {
   adapters: Map<string, LLMAdapter>;
   logger: Logger;
+  io?: any;
 }
 
 export interface Command {
@@ -30,7 +31,7 @@ export class Orchestrator extends EventEmitter {
     this.logger = config.logger;
     this.modelRegistry = new ModelRegistry();
     this.modelRegistry.setAdapters(config.adapters);
-    this.commandHandler = new CommandHandler(this);
+    this.commandHandler = new CommandHandler(this, config.io);
     this.contextManager = new ContextManager();
     
     // Listen to model changes
@@ -38,6 +39,10 @@ export class Orchestrator extends EventEmitter {
       this.logger.info(`Model changed from ${event.from} to ${event.to}`);
       this.emit('model-changed', event);
     });
+  }
+  
+  setSocketIO(io: any) {
+    this.commandHandler = new CommandHandler(this, io);
   }
   
   async handleCommand(command: Command): Promise<any> {

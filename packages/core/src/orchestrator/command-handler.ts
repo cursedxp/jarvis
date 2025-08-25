@@ -12,14 +12,16 @@ export class CommandHandler {
   private userPreferences: UserPreferenceManager;
   private knowledgeBase: KnowledgeBase;
   private fineTuningManager: FineTuningManager;
+  private io?: any;
   
-  constructor(orchestrator: Orchestrator) {
+  constructor(orchestrator: Orchestrator, io?: any) {
     this.orchestrator = orchestrator;
     this.handlers = new Map();
     this.systemPromptManager = new SystemPromptManager();
     this.userPreferences = new UserPreferenceManager();
     this.knowledgeBase = new KnowledgeBase();
     this.fineTuningManager = new FineTuningManager();
+    this.io = io;
     this.registerHandlers();
   }
   
@@ -114,7 +116,11 @@ export class CommandHandler {
     // Check for planning commands first
     const planningCommand = planningService.parseCommand(message);
     if (planningCommand) {
-      return await this.handlePlanningCommand(planningCommand);
+      const result = await this.handlePlanningCommand(planningCommand);
+      if (result) {
+        return result;
+      }
+      // If result is null, fall through to normal chat processing
     }
     
     // Detect intent and auto-route to appropriate model
@@ -407,77 +413,238 @@ export class CommandHandler {
             success: taskAdded
           };
 
-        case 'getTodaysPlan':
-          const summary = await planningService.generateTodaysSummary();
-          return {
-            type: 'planning',
-            content: summary,
-            success: true
-          };
-
-        case 'getWeeklySummary':
-          const weeklyStats = await planningService.generateWeeklySummary();
-          return {
-            type: 'planning',
-            content: weeklyStats,
-            success: true
-          };
-
-        case 'addGoal':
-          const plan = await planningService.getTodaysPlan();
-          const currentGoals = plan?.goals || [];
-          const updatedPlan = await planningService.createTodaysPlan({
-            goals: [...currentGoals, data.goal]
-          });
-          return {
-            type: 'planning',
-            content: updatedPlan ? `Goal added: "${data.goal}"` : 'Failed to add goal',
-            success: !!updatedPlan
-          };
-
-        case 'listTasksToComplete':
-          const todaysPlan = await planningService.getTodaysPlan();
-          if (!todaysPlan || todaysPlan.tasks.length === 0) {
-            return {
-              type: 'planning',
-              content: 'No tasks found for today',
-              success: true
-            };
+        case 'intelligentPlanningAssistant':
+          // Intelligent planning assistant that understands natural language
+          const userMessage = data.message;
+          console.log('🧠 Intelligent planning assistant processing:', userMessage);
+          
+          const taskType = this.detectTaskType(userMessage);
+          const recommendedModel = this.orchestrator.autoSelectModelForTask(taskType);
+          await this.orchestrator.switchToModel(recommendedModel);
+          
+          // Get current planning context  
+          let currentPlan = '';
+          try {
+            console.log('🔍 Fetching current tasks for context...');
+            const todaysPlan = await planningService.getTodaysPlan();
+            console.log('📋 Current plan data:', todaysPlan);
+            
+            if (todaysPlan && todaysPlan.tasks && todaysPlan.tasks.length > 0) {
+              const incompleteTasks = todaysPlan.tasks.filter(t => !t.completed);
+              const completedTasks = todaysPlan.tasks.filter(t => t.completed);
+              
+              currentPlan = `\nCurrent tasks (${todaysPlan.tasks.length} total):`;
+              currentPlan += `\n${todaysPlan.tasks.map(t => `- ${t.title}${t.completed ? ' ✓' : ' (pending)'}`).join('\n')}`;
+              
+              if (incompleteTasks.length > 0) {
+                currentPlan += `\n\nIncomplete tasks: ${incompleteTasks.length}`;
+              }
+              if (completedTasks.length > 0) {
+                currentPlan += `\nCompleted tasks: ${completedTasks.length}`;
+              }
+            } else {
+              currentPlan = '\nNo current tasks found.';
+            }
+          } catch (error) {
+            console.error('❌ Failed to fetch current plan:', error);
+            currentPlan = '\nUnable to fetch current tasks.';
           }
           
-          const pendingTasks = todaysPlan.tasks.filter(t => !t.completed);
-          if (pendingTasks.length === 0) {
+          const systemPrompt = `You are Jarvis, an intelligent planning AGENT. You don't just talk about actions - you EXECUTE them using specific commands.
+
+CRITICAL: You MUST use these exact action commands when the user requests planning actions:
+
+MANDATORY ACTIONS:
+- Create tasks: SAVE_TASK: [task name]
+- Complete tasks: COMPLETE_TASK: [exact task name] 
+- Complete all tasks: COMPLETE_ALL_TASKS
+- Add goals: SAVE_GOAL: [goal text]
+
+AGENT BEHAVIOR RULES:
+1. When user asks to complete a task, you MUST output: COMPLETE_TASK: [exact task name from context]
+2. When user asks to add a task, you MUST output: SAVE_TASK: [task name]
+3. ALWAYS use the EXACT task names from the context below
+4. Execute the action FIRST, then provide a brief confirmation
+5. Do NOT just describe what you would do - DO IT with the commands
+
+The user said: "${userMessage}"
+
+Current planning context:${currentPlan}
+
+EXECUTE THE REQUESTED ACTION using the mandatory commands above, then provide a brief response.`;
+
+          const now = new Date();
+          const dateTimeContext = `Current date and time: ${now.toLocaleString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long', 
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          })}`;
+
+          const response = await this.orchestrator.processWithLLM(`${systemPrompt}\n\n${dateTimeContext}\n\nUser: ${userMessage}`);
+          
+          console.log('🔍 LLM Response:', response);
+          
+          // Process all action types intelligently
+          let actionsProcessed = 0;
+          let actionSummary = [];
+          
+          // Extract and process SAVE_TASK actions
+          const taskMatches = response.match(/SAVE_TASK:\s*(.+)/g);
+          if (taskMatches && taskMatches.length > 0) {
+            console.log('✅ Processing SAVE_TASK actions...');
+            for (const match of taskMatches) {
+              const taskTitle = match.replace('SAVE_TASK:', '').trim();
+              console.log('💾 Saving task:', taskTitle);
+              const result = await planningService.addTask({ title: taskTitle });
+              if (result) {
+                actionsProcessed++;
+                actionSummary.push(`Added task: "${taskTitle}"`);
+                
+                // Emit planning update via Socket.IO
+                if (this.io) {
+                  this.io.emit('planning_updated', { 
+                    action: 'task_added', 
+                    task: { title: taskTitle },
+                    timestamp: new Date()
+                  });
+                }
+              }
+            }
+          }
+          
+          // Extract and process SAVE_GOAL actions  
+          const goalMatches = response.match(/SAVE_GOAL:\s*(.+)/g);
+          if (goalMatches && goalMatches.length > 0) {
+            console.log('🎯 Processing SAVE_GOAL actions...');
+            for (const match of goalMatches) {
+              const goalText = match.replace('SAVE_GOAL:', '').trim();
+              console.log('🎯 Saving goal:', goalText);
+              try {
+                const result = await fetch('http://localhost:3000/api/plans/today', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ type: 'goal', goal: goalText })
+                });
+                if (result.ok) {
+                  actionsProcessed++;
+                  actionSummary.push(`Added goal: "${goalText}"`);
+                  
+                  // Emit planning update via Socket.IO
+                  if (this.io) {
+                    this.io.emit('planning_updated', { 
+                      action: 'goal_added', 
+                      goal: goalText,
+                      timestamp: new Date()
+                    });
+                  }
+                }
+              } catch (error) {
+                console.error('Failed to save goal:', error);
+              }
+            }
+          }
+          
+          // Extract and process COMPLETE_TASK actions
+          const completeMatches = response.match(/COMPLETE_TASK:\s*(.+)/g);
+          if (completeMatches && completeMatches.length > 0) {
+            console.log('✅ Processing COMPLETE_TASK actions...');
+            for (const match of completeMatches) {
+              const taskTitle = match.replace('COMPLETE_TASK:', '').trim();
+              console.log('✅ Completing specific task:', taskTitle);
+              
+              // Find task by title and complete it
+              try {
+                const currentTasks = await planningService.getTodaysPlan();
+                if (currentTasks && currentTasks.tasks) {
+                  const taskToComplete = currentTasks.tasks.find(t => 
+                    t.title.toLowerCase().includes(taskTitle.toLowerCase()) || 
+                    taskTitle.toLowerCase().includes(t.title.toLowerCase())
+                  );
+                  
+                  if (taskToComplete) {
+                    const result = await planningService.completeTask(taskToComplete.id);
+                    if (result) {
+                      actionsProcessed++;
+                      actionSummary.push(`✓ Completed: "${taskToComplete.title}"`);
+                      
+                      // Emit planning update via Socket.IO
+                      if (this.io) {
+                        this.io.emit('planning_updated', { 
+                          action: 'task_completed', 
+                          task: { id: taskToComplete.id, title: taskToComplete.title },
+                          timestamp: new Date()
+                        });
+                      }
+                    }
+                  }
+                }
+              } catch (error) {
+                console.error('Failed to complete task:', error);
+              }
+            }
+          }
+          
+          // Extract and process COMPLETE_ALL_TASKS action
+          if (response.includes('COMPLETE_ALL_TASKS')) {
+            console.log('✅ Processing COMPLETE_ALL_TASKS action...');
+            try {
+              const currentTasks = await planningService.getTodaysPlan();
+              if (currentTasks && currentTasks.tasks) {
+                const incompleteTasks = currentTasks.tasks.filter(t => !t.completed);
+                console.log(`📋 Found ${incompleteTasks.length} incomplete tasks to complete`);
+                
+                for (const task of incompleteTasks) {
+                  console.log('✅ Completing task:', task.title);
+                  const result = await planningService.completeTask(task.id);
+                  if (result) {
+                    actionsProcessed++;
+                    actionSummary.push(`✓ Completed: "${task.title}"`);
+                  }
+                }
+                
+                // Emit bulk completion event
+                if (this.io && incompleteTasks.length > 0) {
+                  this.io.emit('planning_updated', { 
+                    action: 'all_tasks_completed', 
+                    completedCount: incompleteTasks.length,
+                    tasks: incompleteTasks.map(t => ({ id: t.id, title: t.title })),
+                    timestamp: new Date()
+                  });
+                }
+              }
+            } catch (error) {
+              console.error('Failed to complete all tasks:', error);
+            }
+          }
+            
+            // Clean up response by removing action lines
+            let cleanResponse = response
+              .replace(/SAVE_TASK:\s*.+/g, '')
+              .replace(/SAVE_GOAL:\s*.+/g, '')  
+              .replace(/COMPLETE_TASK:\s*.+/g, '')
+              .replace(/COMPLETE_ALL_TASKS/g, '')
+              .trim();
+            
+            // Add action summary if actions were processed
+            if (actionsProcessed > 0) {
+              cleanResponse += '\n\n' + actionSummary.join('\n');
+            }
+            
             return {
               type: 'planning',
-              content: 'All tasks completed! Great job.',
+              content: cleanResponse,
               success: true
             };
-          }
-
-          const taskList = pendingTasks
-            .map((task, index) => `${index + 1}. ${task.title}`)
-            .join('\n');
-          
-          return {
-            type: 'planning',
-            content: `Pending tasks:\n${taskList}`,
-            success: true
-          };
 
         default:
-          return {
-            type: 'planning',
-            content: 'Planning command not recognized',
-            success: false
-          };
+          return null;
       }
     } catch (error) {
       console.error('Planning command error:', error);
-      return {
-        type: 'planning',
-        content: 'Planning service is currently unavailable',
-        success: false
-      };
+      return null;
     }
   }
 

@@ -24,6 +24,9 @@ async function main() {
       port: parseInt(process.env.CORE_PORT || '7777')
     });
     
+    // Pass the Socket.IO instance to the orchestrator for real-time planning updates
+    orchestrator.setSocketIO(server.io);
+    
     await server.start();
     
     logger.info('Jarvis Core Agent is running');

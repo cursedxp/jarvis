@@ -25,29 +25,41 @@ export function FloatingWindow({
   defaultY
 }: FloatingWindowProps) {
   const [position, setPosition] = useState({ 
-    x: defaultX ?? window.innerWidth - defaultWidth - 24, 
-    y: defaultY ?? window.innerHeight - defaultHeight - 100 
+    x: defaultX ?? 0, 
+    y: defaultY ?? 0
   })
   const [size, setSize] = useState({ width: defaultWidth, height: defaultHeight })
   const [isDragging, setIsDragging] = useState(false)
   const [isResizing, setIsResizing] = useState(false)
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
+  const [isInitialized, setIsInitialized] = useState(false)
   const windowRef = useRef<HTMLDivElement>(null)
+
+  // Initialize position on client side
+  useEffect(() => {
+    if (!isInitialized && typeof window !== 'undefined') {
+      setPosition({
+        x: defaultX ?? (typeof window !== 'undefined' ? window.innerWidth - defaultWidth - 24 : 0),
+        y: defaultY ?? (typeof window !== 'undefined' ? window.innerHeight - defaultHeight - 100 : 0)
+      })
+      setIsInitialized(true)
+    }
+  }, [isInitialized, defaultX, defaultY, defaultWidth, defaultHeight])
 
   useEffect(() => {
     if (!isOpen) return
 
     const handleMouseMove = (e: MouseEvent) => {
-      if (isDragging) {
+      if (isDragging && typeof window !== 'undefined') {
         setPosition({
-          x: Math.max(0, Math.min(window.innerWidth - size.width, e.clientX - dragOffset.x)),
-          y: Math.max(0, Math.min(window.innerHeight - size.height, e.clientY - dragOffset.y))
+          x: Math.max(0, Math.min((typeof window !== 'undefined' ? window.innerWidth : 1200) - size.width, e.clientX - dragOffset.x)),
+          y: Math.max(0, Math.min((typeof window !== 'undefined' ? window.innerHeight : 800) - size.height, e.clientY - dragOffset.y))
         })
       }
       
-      if (isResizing) {
-        const newWidth = Math.max(350, Math.min(window.innerWidth * 0.9, e.clientX - position.x + 10))
-        const newHeight = Math.max(400, Math.min(window.innerHeight * 0.9, e.clientY - position.y + 10))
+      if (isResizing && typeof window !== 'undefined') {
+        const newWidth = Math.max(350, Math.min((typeof window !== 'undefined' ? window.innerWidth : 1200) * 0.9, e.clientX - position.x + 10))
+        const newHeight = Math.max(400, Math.min((typeof window !== 'undefined' ? window.innerHeight : 800) * 0.9, e.clientY - position.y + 10))
         setSize({ width: newWidth, height: newHeight })
       }
     }
