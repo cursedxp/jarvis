@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { Orchestrator } from '../../orchestrator/orchestrator';
 import { TTSManager } from '../../tts-manager';
 import { createLogger } from '../../utils/logger';
+import '../../types/fastify';
 
 const logger = createLogger('command-routes');
 

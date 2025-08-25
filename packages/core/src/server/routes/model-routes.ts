@@ -1,5 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { Orchestrator } from '../../orchestrator/orchestrator';
+import '../../types/fastify';
 
 interface ModelSwitchBody {
   model: string;

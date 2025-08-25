@@ -1,5 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { Orchestrator } from '../../orchestrator/orchestrator';
+import '../../types/fastify';
 
 export async function healthRoutes(fastify: FastifyInstance, options: { orchestrator: Orchestrator }) {
   const { orchestrator } = options;
