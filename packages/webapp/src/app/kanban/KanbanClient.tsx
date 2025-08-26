@@ -176,7 +176,7 @@ export default function KanbanClient() {
               <span className="font-medium">Drag & Drop Kanban</span>
             </div>
             <p className="text-blue-300/80 text-sm">
-              Drag tasks between columns or use voice commands: "move task [name] to [status]"
+              Drag tasks between columns or use voice commands: &ldquo;move task [name] to [status]&rdquo;
             </p>
           </div>
         </div>

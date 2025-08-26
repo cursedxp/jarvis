@@ -6,6 +6,8 @@ import { FineTuningManager } from '../services/fine-tuning';
 import { planningService } from '../services/planning-integration';
 import { PlanningHandler } from './handlers/planning-handler';
 import { PomodoroHandler } from './handlers/pomodoro-handler';
+import { MusicHandler } from './handlers/music-handler';
+import { createSpotifyService } from '../services/spotify-service';
 
 export class CommandHandler {
   private orchestrator: Orchestrator;
@@ -15,6 +17,7 @@ export class CommandHandler {
   private fineTuningManager: FineTuningManager;
   private planningHandler: PlanningHandler;
   private pomodoroHandler: PomodoroHandler;
+  private musicHandler: MusicHandler;
   // @ts-ignore - used in constructor for handlers
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private _io?: any;
@@ -27,9 +30,22 @@ export class CommandHandler {
     this.fineTuningManager = new FineTuningManager();
     this.planningHandler = new PlanningHandler(orchestrator, io);
     this.pomodoroHandler = new PomodoroHandler(orchestrator, io);
+    
+    // Initialize Spotify service
+    const spotifyService = createSpotifyService(
+      process.env.SPOTIFY_CLIENT_ID || '',
+      process.env.SPOTIFY_CLIENT_SECRET || '',
+      process.env.SPOTIFY_REDIRECT_URI || 'http://localhost:7777/auth/spotify/callback'
+    );
+    this.musicHandler = new MusicHandler(orchestrator, this.userPreferences, spotifyService, io);
+    
     this._io = io;
     console.log('📡 COMMAND HANDLER: Initialized with Socket.IO instance:', !!io);
     this.registerHandlers();
+  }
+
+  getUserPreferences(): UserPreferenceManager {
+    return this.userPreferences;
   }
   
   private registerHandlers() {
@@ -40,6 +56,7 @@ export class CommandHandler {
     this.handlers.set('chat', this.handleChat.bind(this));
     this.handlers.set('planning', this.handlePlanningDirect.bind(this));
     this.handlers.set('pomodoro', this.handlePomodoroDirect.bind(this));
+    this.handlers.set('music', this.handleMusicDirect.bind(this));
     this.handlers.set('switchModel', this.handleSwitchModel.bind(this));
     this.handlers.set('listModels', this.handleListModels.bind(this));
     this.handlers.set('getCurrentModel', this.handleGetCurrentModel.bind(this));
@@ -122,8 +139,26 @@ export class CommandHandler {
   private async handleChat(command: Command): Promise<any> {
     const { message, conversationHistory } = command.payload;
     
-    // Check for pomodoro commands first
     const lowerMessage = message.toLowerCase();
+    
+    // Check for music commands first
+    const musicKeywords = [
+      'music', 'song', 'track', 'spotify', 'play', 'pause', 'stop',
+      'next', 'previous', 'skip', 'volume', 'artist', 'album',
+      'play music', 'pause music', 'stop music', 'what\'s playing'
+    ];
+    
+    const isMusicRelated = musicKeywords.some(keyword => lowerMessage.includes(keyword));
+    
+    if (isMusicRelated) {
+      console.log('🎵 Chat handler: Routing to MUSIC HANDLER');
+      return await this.musicHandler.handle({
+        type: 'music',
+        payload: { message }
+      });
+    }
+    
+    // Check for pomodoro commands
     const pomodoroKeywords = [
       'pomodoro', 'timer', 'focus', 'work session', 'break',
       'start pomodoro', 'stop pomodoro', 'pause pomodoro'
@@ -432,6 +467,11 @@ export class CommandHandler {
   private async handlePomodoroDirect(command: Command): Promise<any> {
     console.log('🍅 POMODORO HANDLER: Command received in CommandHandler');
     return await this.pomodoroHandler.handle(command);
+  }
+
+  private async handleMusicDirect(command: Command): Promise<any> {
+    console.log('🎵 MUSIC HANDLER: Command received in CommandHandler');
+    return await this.musicHandler.handle(command);
   }
 
   private async handleStopTraining(): Promise<any> {

@@ -41,8 +41,14 @@ export class Orchestrator extends EventEmitter {
     });
   }
   
-  setSocketIO(io: any) {
-    this.commandHandler = new CommandHandler(this, io);
+  setSocketIO(_io: any) {
+    // Don't create a new CommandHandler, just update the existing one
+    // The CommandHandler should handle Socket.IO updates internally
+    console.log('📡 ORCHESTRATOR: Socket.IO instance set');
+  }
+
+  getCommandHandler(): CommandHandler {
+    return this.commandHandler;
   }
   
   async handleCommand(command: Command): Promise<any> {

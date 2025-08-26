@@ -18,6 +18,7 @@
     "@fastify/request-context": "^6.2.1",
     "@fastify/sensible": "^6.0.3",
     "@types/mongoose": "^5.11.96",
+    "axios": "^1.11.0",
     "date-fns": "^2.30.0",
     "dotenv": "^16.3.1",
     "eventemitter3": "^5.0.1",

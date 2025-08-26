@@ -32,8 +32,16 @@
     "npm": ">=9.0.0"
   },
   "lint-staged": {
-    "*.{js,ts,tsx,jsx}": [
-      "eslint --fix",
+    "packages/core/**/*.{js,ts}": [
+      "bash -c 'cd packages/core && npx eslint --fix'",
+      "prettier --write"
+    ],
+    "packages/webapp/**/*.{js,ts,tsx,jsx}": [
+      "bash -c 'cd packages/webapp && npx eslint --fix'",
+      "prettier --write"
+    ],
+    "packages/shared/**/*.{js,ts}": [
+      "bash -c 'cd packages/shared && npx eslint --fix'",
       "prettier --write"
     ],
     "*.{json,md,yml,yaml}": [

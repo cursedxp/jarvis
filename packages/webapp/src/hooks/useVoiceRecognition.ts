@@ -7,8 +7,37 @@ interface UseVoiceRecognitionProps {
   onStateChange: (state: 'idle' | 'listening' | 'processing') => void
 }
 
+interface SpeechRecognitionEvent {
+  results: {
+    length: number;
+    [index: number]: {
+      isFinal: boolean;
+      [index: number]: {
+        transcript: string;
+      };
+    };
+  };
+  resultIndex: number;
+}
+
+interface SpeechRecognitionErrorEvent {
+  error: string;
+}
+
+interface SpeechRecognition {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onstart: (() => void) | null;
+  onresult: ((event: SpeechRecognitionEvent) => void) | null;
+  onerror: ((event: SpeechRecognitionErrorEvent) => void) | null;
+  onend: (() => void) | null;
+  start(): void;
+  stop(): void;
+}
+
 export function useVoiceRecognition({ onTranscript, onStateChange }: UseVoiceRecognitionProps) {
-  const [recognition, setRecognition] = useState<any>(null)
+  const [recognition, setRecognition] = useState<SpeechRecognition | null>(null)
   const [isListening, setIsListening] = useState(false)
   const [transcript, setTranscript] = useState('')
   const finalTranscriptBufferRef = useRef('')
@@ -31,8 +60,9 @@ export function useVoiceRecognition({ onTranscript, onStateChange }: UseVoiceRec
     if (recognition || typeof window === 'undefined') return
     
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-      const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition
-      const recognitionInstance = new SpeechRecognition()
+      const SpeechRecognitionConstructor = (window as unknown as { webkitSpeechRecognition?: new() => SpeechRecognition; SpeechRecognition?: new() => SpeechRecognition }).webkitSpeechRecognition || (window as unknown as { webkitSpeechRecognition?: new() => SpeechRecognition; SpeechRecognition?: new() => SpeechRecognition }).SpeechRecognition
+      if (!SpeechRecognitionConstructor) return;
+      const recognitionInstance = new SpeechRecognitionConstructor()
       
       recognitionInstance.continuous = true
       recognitionInstance.interimResults = true
@@ -44,7 +74,7 @@ export function useVoiceRecognition({ onTranscript, onStateChange }: UseVoiceRec
         console.log('Speech recognition started')
       }
       
-      recognitionInstance.onresult = (event: any) => {
+      recognitionInstance.onresult = (event: SpeechRecognitionEvent) => {
         let interimTranscript = ''
         
         // Process only new results to avoid duplication
@@ -62,7 +92,7 @@ export function useVoiceRecognition({ onTranscript, onStateChange }: UseVoiceRec
         setTranscript(displayText)
       }
       
-      recognitionInstance.onerror = (event: any) => {
+      recognitionInstance.onerror = (event: SpeechRecognitionErrorEvent) => {
         // "no-speech" is a common, non-critical error that happens when no speech is detected
         // Only log actual errors, not normal timeout events
         if (event.error !== 'no-speech') {

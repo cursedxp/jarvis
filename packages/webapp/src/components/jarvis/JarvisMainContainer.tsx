@@ -390,7 +390,7 @@ export function JarvisMainContainer() {
     }
   };
 
-  const handleSpotifyStateUpdate = (data: any) => {
+  const handleSpotifyStateUpdate = (data: Record<string, unknown>) => {
     // Handle real-time music state updates from Socket.IO
     console.log('🎵 Music state update received:', data);
   };

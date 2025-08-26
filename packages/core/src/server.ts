@@ -9,6 +9,7 @@ import { healthRoutes } from './server/routes/health-routes';
 import { modelRoutes } from './server/routes/model-routes';
 import { ttsRoutes } from './server/routes/tts-routes';
 import { commandRoutes } from './server/routes/command-routes';
+import { spotifyRoutes } from './server/routes/spotify-routes';
 
 // Import middleware
 import { setupCorsMiddleware } from './server/middleware/cors-middleware';
@@ -104,6 +105,10 @@ export async function createServer(options: ServerOptions) {
   await fastify.register(commandRoutes, { 
     orchestrator: orchestrator,
     ttsManager: ttsManager
+  });
+  
+  await fastify.register(spotifyRoutes, { 
+    userPreferences: orchestrator.getCommandHandler().getUserPreferences()
   });
   
   // Global error handler

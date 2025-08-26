@@ -1,10 +1,12 @@
 import dotenv from 'dotenv';
+import path from 'path';
 import { createLogger } from './utils/logger';
 import { Orchestrator } from './orchestrator/orchestrator';
 import { createServer } from './server';
 import { initializeAdapters } from './adapters';
 
-dotenv.config();
+// Load .env from project root (3 levels up from packages/core/src)
+dotenv.config({ path: path.join(__dirname, '../../../.env') });
 
 const logger = createLogger('core');
 

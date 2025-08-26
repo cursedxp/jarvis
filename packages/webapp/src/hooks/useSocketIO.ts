@@ -10,6 +10,7 @@ interface UseSocketIOProps {
   onPomodoroCommand?: (data: { action: 'start' | 'stop' | 'pause' | 'reset' }) => void;
   onPomodoroPhaseComplete?: (data: { phase: 'work' | 'break', nextPhase: 'break' | 'prompt', message: string }) => void;
   onPomodoroSync?: (data: { action: string, phase: string, duration?: number }) => void;
+  onMusicStateUpdate?: (data: { action: string, data?: Record<string, unknown> }) => void;
 }
 
 export function useSocketIO({ 
@@ -18,7 +19,8 @@ export function useSocketIO({
   onAudioStopped,
   onPomodoroCommand,
   onPomodoroPhaseComplete,
-  onPomodoroSync
+  onPomodoroSync,
+  onMusicStateUpdate
 }: UseSocketIOProps) {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
@@ -51,17 +53,17 @@ export function useSocketIO({
     if (!socket) return;
 
     // Listen for audio events from server
-    const handleAudioStarting = (data: any) => {
+    const handleAudioStarting = (data: Record<string, unknown>) => {
       console.log('🎵 Server audio starting event received:', data);
       onAudioStarting?.(data);
     };
     
-    const handleAudioFinished = (data: any) => {
+    const handleAudioFinished = (data: Record<string, unknown>) => {
       console.log('🔚 Server audio finished event received:', data);
       onAudioFinished?.(data);
     };
     
-    const handleAudioStopped = (data: any) => {
+    const handleAudioStopped = (data: Record<string, unknown>) => {
       console.log('🛑 Server audio stopped event received:', data);
       onAudioStopped?.(data);
     };
@@ -81,12 +83,18 @@ export function useSocketIO({
       onPomodoroSync?.(data);
     };
 
+    const handleMusicStateUpdate = (data: { action: string, data?: Record<string, unknown> }) => {
+      console.log('🎵 Server music state update:', data);
+      onMusicStateUpdate?.(data);
+    };
+
     socket.on('audio_starting', handleAudioStarting);
     socket.on('audio_finished', handleAudioFinished);
     socket.on('audio_stopped', handleAudioStopped);
     socket.on('pomodoro_command', handlePomodoroCommand);
     socket.on('pomodoro_phase_complete', handlePomodoroPhaseComplete);
     socket.on('pomodoro_sync', handlePomodoroSync);
+    socket.on('music_state_update', handleMusicStateUpdate);
     
     // Cleanup event listeners
     return () => {
@@ -96,11 +104,12 @@ export function useSocketIO({
       socket.off('pomodoro_command', handlePomodoroCommand);
       socket.off('pomodoro_phase_complete', handlePomodoroPhaseComplete);
       socket.off('pomodoro_sync', handlePomodoroSync);
+      socket.off('music_state_update', handleMusicStateUpdate);
     };
-  }, [socket, onAudioStarting, onAudioFinished, onAudioStopped, onPomodoroCommand, onPomodoroPhaseComplete, onPomodoroSync]);
+  }, [socket, onAudioStarting, onAudioFinished, onAudioStopped, onPomodoroCommand, onPomodoroPhaseComplete, onPomodoroSync, onMusicStateUpdate]);
 
   // Emit command via WebSocket
-  const emitCommand = useCallback((command: any, callback?: (response: any) => void) => {
+  const emitCommand = useCallback((command: Record<string, unknown>, callback?: (response: Record<string, unknown>) => void) => {
     if (socket && isConnected) {
       socket.emit('command', command, callback);
     } else {

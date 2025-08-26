@@ -74,7 +74,7 @@ export async function GET() {
     const response = {
       date: today.toISOString().split('T')[0],
       goals: todayPlan.goals || [],
-      tasks: (todayPlan.tasks || []).map(task => ({
+      tasks: (todayPlan.tasks || []).map((task: Record<string, unknown>) => ({
         id: task.id,
         title: task.title,
         completed: task.completed,
@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
       };
       
       // Find or create today's plan and add the task
-      const result = await DailyPlan.findOneAndUpdate(
+      await DailyPlan.findOneAndUpdate(
         { date: today },
         { 
           $push: { tasks: newTask },
@@ -152,7 +152,7 @@ export async function PUT(request: NextRequest) {
     
     if (data.taskId) {
       // Update task in today's plan
-      const updateFields: any = { updatedAt: new Date() };
+      const updateFields: Record<string, unknown> = { updatedAt: new Date() };
       
       if (data.completed !== undefined) updateFields['tasks.$.completed'] = data.completed;
       if (data.status !== undefined) updateFields['tasks.$.status'] = data.status;
@@ -168,7 +168,7 @@ export async function PUT(request: NextRequest) {
       );
       
       if (result) {
-        const updatedTask = result.tasks.find(t => t.id === data.taskId);
+        const updatedTask = result.tasks.find((t: Record<string, unknown>) => t.id === data.taskId);
         return NextResponse.json({ success: true, task: updatedTask });
       } else {
         return NextResponse.json({ success: false, error: 'Task not found' });

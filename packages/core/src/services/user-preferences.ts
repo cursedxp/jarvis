@@ -9,6 +9,15 @@ export interface ModelTrainingConfig {
   }>;
 }
 
+export interface SpotifyTokens {
+  access_token: string;
+  refresh_token: string;
+  expires_in: number;
+  token_type: string;
+  scope: string;
+  expires_at: number;
+}
+
 export interface UserPreferences {
   personality: 'professional' | 'casual' | 'friendly';
   responseLength: 'brief' | 'detailed' | 'comprehensive';
@@ -20,6 +29,7 @@ export interface UserPreferences {
     commonQuestions: string[];
     preferredAnswers: Record<string, string>;
   };
+  spotifyTokens?: SpotifyTokens;
 }
 
 export class UserPreferenceManager {
@@ -135,5 +145,24 @@ export class UserPreferenceManager {
       return basePrompt;
     }
     return `${basePrompt}\n\nModel-specific instructions: ${config.systemPromptOverrides}`;
+  }
+
+  // Spotify token management
+  setSpotifyTokens(tokens: SpotifyTokens): void {
+    this.preferences.spotifyTokens = tokens;
+    console.log('🎵 USER PREFERENCES: Spotify tokens saved');
+  }
+
+  getSpotifyTokens(): SpotifyTokens | null {
+    return this.preferences.spotifyTokens || null;
+  }
+
+  clearSpotifyTokens(): void {
+    this.preferences.spotifyTokens = undefined;
+    console.log('🎵 USER PREFERENCES: Spotify tokens cleared');
+  }
+
+  hasSpotifyTokens(): boolean {
+    return !!this.preferences.spotifyTokens;
   }
 }

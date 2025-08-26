@@ -28,15 +28,21 @@ export function useConversations() {
       const saved = localStorage.getItem('jarvis_conversations');
       if (saved) {
         const parsed = JSON.parse(saved);
-        const conversations = parsed.map((conv: any) => ({
-          ...conv,
-          createdAt: new Date(conv.createdAt),
-          updatedAt: new Date(conv.updatedAt),
-          messages: conv.messages.map((msg: any) => ({
-            ...msg,
-            timestamp: new Date(msg.timestamp)
-          }))
-        }));
+        const conversations = parsed.map((conv: unknown) => {
+          const convObj = conv as Record<string, unknown>;
+          return {
+            ...convObj,
+            createdAt: new Date(convObj.createdAt as string),
+            updatedAt: new Date(convObj.updatedAt as string),
+            messages: (convObj.messages as unknown[]).map((msg: unknown) => {
+              const msgObj = msg as Record<string, unknown>;
+              return {
+                ...msgObj,
+                timestamp: new Date(msgObj.timestamp as string)
+              };
+            })
+          };
+        });
         setConversations(conversations);
         
         if (conversations.length > 0) {
@@ -105,7 +111,7 @@ export function useConversations() {
     
     console.log('📝 Adding message to conversation:', { 
       role, 
-      content: content.substring(0, 50) + '...', 
+      content: content ? content.substring(0, 50) + '...' : 'No content', 
       activeConversation 
     });
     
@@ -115,7 +121,7 @@ export function useConversations() {
           ? { 
               ...conv, 
               messages: [...conv.messages, message],
-              title: conv.messages.length === 0 ? content.slice(0, 30) + '...' : conv.title,
+              title: conv.messages.length === 0 ? (content ? content.slice(0, 30) + '...' : 'New Chat') : conv.title,
               updatedAt: new Date()
             }
           : conv

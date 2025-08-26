@@ -1,5 +1,5 @@
 interface IntentAnalysis {
-  intent: 'ADD_TASK' | 'DELETE_TASK' | 'DELETE_ALL_TASKS' | 'MOVE_TASK' | 'GENERATE_TASKS' | 'POMODORO' | 'POMODORO_DURATION' | 'UNKNOWN'
+  intent: 'ADD_TASK' | 'DELETE_TASK' | 'DELETE_ALL_TASKS' | 'MOVE_TASK' | 'GENERATE_TASKS' | 'POMODORO' | 'POMODORO_DURATION' | 'MUSIC_PLAY' | 'MUSIC_PAUSE' | 'MUSIC_NEXT' | 'MUSIC_PREVIOUS' | 'MUSIC_VOLUME' | 'MUSIC_SEARCH' | 'MUSIC_STATUS' | 'UNKNOWN'
   confidence: number
   entities: {
     taskName?: string
@@ -10,6 +10,10 @@ interface IntentAnalysis {
     timeframe?: string
     pomodoroAction?: 'start' | 'stop' | 'pause' | 'reset' | 'continue'
     pomodoroDuration?: number
+    songName?: string
+    artistName?: string
+    volumeLevel?: number
+    searchQuery?: string
   }
   reasoning: string
 }
@@ -39,7 +43,15 @@ export class IntentAnalyzer {
       hasPomodoroStartKeywords: this.hasSemanticMatch(message, ['start', 'begin', 'launch', 'activate', 'run']),
       hasPomodoroStopKeywords: this.hasSemanticMatch(message, ['stop', 'pause', 'end', 'halt', 'cancel']),
       hasPomodoroResetKeywords: this.hasSemanticMatch(message, ['reset', 'restart', 'clear']),
-      hasPomodoroontinueKeywords: this.hasSemanticMatch(message, ['continue', 'next', 'another', 'more'])
+      hasPomodoroontinueKeywords: this.hasSemanticMatch(message, ['continue', 'next', 'another', 'more']),
+      hasMusicKeywords: this.hasSemanticMatch(message, ['music', 'song', 'track', 'spotify', 'play', 'audio', 'sound']),
+      hasMusicPlayKeywords: this.hasSemanticMatch(message, ['play', 'start', 'begin', 'resume']),
+      hasMusicPauseKeywords: this.hasSemanticMatch(message, ['pause', 'stop', 'halt']),
+      hasMusicNextKeywords: this.hasSemanticMatch(message, ['next', 'skip', 'forward']),
+      hasMusicPreviousKeywords: this.hasSemanticMatch(message, ['previous', 'back', 'last', 'before']),
+      hasMusicVolumeKeywords: this.hasSemanticMatch(message, ['volume', 'loud', 'quiet', 'louder', 'softer', 'up', 'down']),
+      hasMusicSearchKeywords: this.hasSemanticMatch(message, ['search', 'find', 'look for']),
+      hasMusicStatusKeywords: this.hasSemanticMatch(message, ['what', 'playing', 'current', 'now', 'status'])
     }
     
     // AI-powered intent classification with confidence scoring
@@ -55,6 +67,14 @@ export class IntentAnalyzer {
         confidence: 0.95,
         entities: { pomodoroDuration: duration },
         reasoning: `AI detected Pomodoro duration response: ${duration} minutes`
+      }
+    }
+
+    // MUSIC COMMANDS - High priority for music control
+    if (context.hasMusicKeywords || context.hasMusicPlayKeywords || context.hasMusicPauseKeywords || context.hasMusicNextKeywords || context.hasMusicPreviousKeywords) {
+      const musicIntent = this.extractMusicIntent(message, context)
+      if (musicIntent.intent !== 'UNKNOWN') {
+        return musicIntent
       }
     }
 
@@ -340,6 +360,168 @@ export class IntentAnalyzer {
     }
     
     return 25 // default fallback
+  }
+
+  private extractMusicIntent(message: string, context: any): IntentAnalysis {
+    // Check for specific music control intents
+    
+    // MUSIC_STATUS - What's playing, current song, etc.
+    if (context.hasMusicStatusKeywords || 
+        (context.hasMusicKeywords && this.hasSemanticMatch(message, ['what', 'current', 'now', 'playing']))) {
+      return {
+        intent: 'MUSIC_STATUS',
+        confidence: 0.95,
+        entities: {},
+        reasoning: 'AI detected music status request'
+      }
+    }
+
+    // MUSIC_VOLUME - Volume control
+    if (context.hasMusicVolumeKeywords) {
+      const volumeLevel = this.extractVolumeLevel(message)
+      return {
+        intent: 'MUSIC_VOLUME',
+        confidence: 0.95,
+        entities: { volumeLevel },
+        reasoning: `AI detected volume control: ${volumeLevel}%`
+      }
+    }
+
+    // MUSIC_SEARCH - Search for specific music
+    if ((context.hasMusicSearchKeywords && context.hasMusicKeywords) || 
+        this.hasSemanticMatch(message, ['play']) && (this.hasSemanticMatch(message, ['song', 'artist', 'by']))) {
+      const searchEntities = this.extractMusicSearchEntities(message)
+      return {
+        intent: 'MUSIC_SEARCH',
+        confidence: 0.9,
+        entities: searchEntities,
+        reasoning: `AI detected music search: ${searchEntities.searchQuery || searchEntities.songName || searchEntities.artistName}`
+      }
+    }
+
+    // MUSIC_NEXT - Skip to next track
+    if (context.hasMusicNextKeywords && (context.hasMusicKeywords || this.hasSemanticMatch(message, ['song', 'track']))) {
+      return {
+        intent: 'MUSIC_NEXT',
+        confidence: 0.95,
+        entities: {},
+        reasoning: 'AI detected next track command'
+      }
+    }
+
+    // MUSIC_PREVIOUS - Go to previous track
+    if (context.hasMusicPreviousKeywords && (context.hasMusicKeywords || this.hasSemanticMatch(message, ['song', 'track']))) {
+      return {
+        intent: 'MUSIC_PREVIOUS',
+        confidence: 0.95,
+        entities: {},
+        reasoning: 'AI detected previous track command'
+      }
+    }
+
+    // MUSIC_PAUSE - Pause/stop music
+    if (context.hasMusicPauseKeywords && (context.hasMusicKeywords || this.hasSemanticMatch(message, ['music', 'song', 'track', 'spotify']))) {
+      return {
+        intent: 'MUSIC_PAUSE',
+        confidence: 0.95,
+        entities: {},
+        reasoning: 'AI detected music pause command'
+      }
+    }
+
+    // MUSIC_PLAY - Play music (general or specific)
+    if ((context.hasMusicPlayKeywords && context.hasMusicKeywords) || 
+        this.hasSemanticMatch(message, ['play music', 'start music', 'resume music'])) {
+      const playEntities = this.extractMusicPlayEntities(message)
+      return {
+        intent: 'MUSIC_PLAY',
+        confidence: 0.9,
+        entities: playEntities,
+        reasoning: `AI detected music play command${playEntities.songName ? ` for "${playEntities.songName}"` : ''}`
+      }
+    }
+
+    return {
+      intent: 'UNKNOWN',
+      confidence: 0.0,
+      entities: {},
+      reasoning: 'Music keywords detected but could not classify specific intent'
+    }
+  }
+
+  private extractVolumeLevel(message: string): number {
+    // Extract volume level from message
+    const volumeMatch = message.match(/(\d+)%?/)
+    if (volumeMatch) {
+      const volume = parseInt(volumeMatch[1])
+      return Math.min(Math.max(volume, 0), 100) // Clamp between 0-100
+    }
+
+    // Handle relative volume changes
+    if (this.hasSemanticMatch(message, ['up', 'higher', 'louder', 'increase'])) {
+      return 75 // Increase to 75% if not specified
+    }
+    if (this.hasSemanticMatch(message, ['down', 'lower', 'quieter', 'decrease'])) {
+      return 25 // Decrease to 25% if not specified
+    }
+
+    return 50 // Default middle volume
+  }
+
+  private extractMusicSearchEntities(message: string): { songName?: string; artistName?: string; searchQuery?: string } {
+    const entities: { songName?: string; artistName?: string; searchQuery?: string } = {}
+
+    // Look for "by [artist]" pattern
+    const byArtistMatch = message.match(/\bby\s+(.+?)(?:\s|$)/i)
+    if (byArtistMatch) {
+      entities.artistName = byArtistMatch[1].trim()
+    }
+
+    // Look for quoted song names
+    const quotedMatch = message.match(/["']([^"']+)["']/)
+    if (quotedMatch) {
+      entities.songName = quotedMatch[1].trim()
+    }
+
+    // If no specific patterns found, extract the search query
+    if (!entities.songName && !entities.artistName) {
+      const commandWords = ['play', 'search', 'find', 'look', 'for', 'music', 'song', 'track', 'spotify', 'the']
+      const words = message.split(' ')
+      const searchWords = words.filter(word => 
+        !commandWords.includes(word.toLowerCase()) && word.length > 1
+      )
+      if (searchWords.length > 0) {
+        entities.searchQuery = searchWords.join(' ')
+      }
+    }
+
+    return entities
+  }
+
+  private extractMusicPlayEntities(message: string): { songName?: string; artistName?: string } {
+    const entities: { songName?: string; artistName?: string } = {}
+
+    // Look for "play [song name] by [artist]" pattern
+    const playByMatch = message.match(/play\s+(.+?)\s+by\s+(.+?)(?:\s|$)/i)
+    if (playByMatch) {
+      entities.songName = playByMatch[1].trim()
+      entities.artistName = playByMatch[2].trim()
+      return entities
+    }
+
+    // Look for "play [song/artist name]"
+    const playMatch = message.match(/play\s+(.+?)(?:\s|$)/i)
+    if (playMatch) {
+      const name = playMatch[1].trim()
+      // Simple heuristic: if it contains common song words, treat as song name
+      if (this.hasSemanticMatch(name, ['song', 'track', 'music'])) {
+        entities.songName = name
+      } else {
+        entities.songName = name // Default to song name, the API will handle search
+      }
+    }
+
+    return entities
   }
 
   // UTILITY METHODS (keeping existing functionality)

@@ -1,8 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+interface Plan {
+  id: string;
+  title: string;
+  description?: string;
+  createdAt: string;
+}
+
+interface Task {
+  id: string;
+  title: string;
+  description?: string;
+  completed: boolean;
+  planId?: string;
+  createdAt: string;
+}
+
 // Simple in-memory storage for now (you can replace with database later)
-let plans: any[] = [];
-let tasks: any[] = [];
+const plans: Plan[] = [];
+const tasks: Task[] = [];
 
 export async function GET() {
   return NextResponse.json({ plans, tasks });

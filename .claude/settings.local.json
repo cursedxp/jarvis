@@ -73,7 +73,8 @@
       "Bash(open http://localhost:3000/planning)",
       "WebSearch",
       "Bash(open http://localhost:3000/kanban)",
-      "Bash(echo \"\nStarting pomodoro...\")"
+      "Bash(echo \"\nStarting pomodoro...\")",
+      "WebFetch(domain:developer.spotify.com)"
     ],
     "deny": [],
     "ask": [],

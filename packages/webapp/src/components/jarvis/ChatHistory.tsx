@@ -7,6 +7,7 @@ interface Message {
   role: 'user' | 'assistant'
   content: string
   timestamp: Date
+  model?: string
 }
 
 interface ChatHistoryProps {
