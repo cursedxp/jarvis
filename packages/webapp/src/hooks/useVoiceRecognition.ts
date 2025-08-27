@@ -92,7 +92,7 @@ export function useVoiceRecognition({ onTranscript, onStateChange, autoStopEnabl
             _hasNewSpeech = true
           } else {
             interimTranscript = transcript
-            if (transcript.trim()) hasNewSpeech = true
+            if (transcript.trim()) _hasNewSpeech = true
           }
         }
         
