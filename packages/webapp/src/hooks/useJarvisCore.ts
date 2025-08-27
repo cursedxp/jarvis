@@ -21,7 +21,7 @@ interface UseJarvisCoreProps {
 
 export function useJarvisCore({ onTaskTypeDetected }: UseJarvisCoreProps) {
   // Settings hook
-  const { settings, updateSetting, isLoading: settingsLoading } = useSettings()
+  const { settings, updateSetting, isLoading: _settingsLoading } = useSettings()
   
   // Core state
   const [isVoiceEnabled, setIsVoiceEnabled] = useState(false)
@@ -40,9 +40,9 @@ export function useJarvisCore({ onTaskTypeDetected }: UseJarvisCoreProps) {
 
   // Microphone gain hook
   const { 
-    setupMicrophoneGain, 
-    updateGain: updateMicrophoneGain,
-    cleanup: cleanupMicrophoneGain 
+    setupMicrophoneGain: _setupMicrophoneGain, 
+    updateGain: _updateMicrophoneGain,
+    cleanup: _cleanupMicrophoneGain 
   } = useMicrophoneGain({ 
     gainLevel: settings.microphoneGain 
   })
@@ -136,7 +136,7 @@ export function useJarvisCore({ onTaskTypeDetected }: UseJarvisCoreProps) {
   }, [stopAudioLevelSimulation, settings.wakeWordEnabled])
 
   // Socket.IO hook with pomodoro handlers
-  const { socket, isConnected } = useSocketIO({
+  const { socket: _socket, isConnected: _isConnected } = useSocketIO({
     onAudioStarting,
     onAudioFinished,
     onAudioStopped,
@@ -421,7 +421,7 @@ export function useJarvisCore({ onTaskTypeDetected }: UseJarvisCoreProps) {
   }, [settings.ttsMode, settings.voice, loadAvailableVoices, updateSetting])
 
   // Settings handlers
-  const handleTTSModeChange = useCallback(async (mode: 'system' | 'edge') => {
+  const _handleTTSModeChange = useCallback(async (mode: 'system' | 'edge') => {
     updateSetting('ttsMode', mode)
     await changeTTSMode(mode)
     // Load voices for the new TTS mode
@@ -433,12 +433,12 @@ export function useJarvisCore({ onTaskTypeDetected }: UseJarvisCoreProps) {
     }
   }, [updateSetting, changeTTSMode, loadAvailableVoices, settings.voice])
 
-  const handleVoiceChange = useCallback(async (newVoice: string) => {
+  const _handleVoiceChange = useCallback(async (newVoice: string) => {
     updateSetting('voice', newVoice)
     await apiChangeVoice(newVoice, settings.ttsMode)
   }, [updateSetting, apiChangeVoice, settings.ttsMode])
 
-  const saveSettings = useCallback(() => {
+  const _saveSettings = useCallback(() => {
     // Settings are automatically saved by the useSettings hook
     console.log('Settings saved automatically')
   }, [])
@@ -469,7 +469,7 @@ export function useJarvisCore({ onTaskTypeDetected }: UseJarvisCoreProps) {
   const {
     isListening: isListeningForWakeWord,
     isSupported: isWakeWordSupported,
-    startListening: startWakeWordListening,
+    startListening: _startWakeWordListening,
     stopListening: stopWakeWordListening,
     forceRestart: forceRestartWakeWord
   } = useWakeWordDetection({
@@ -480,7 +480,7 @@ export function useJarvisCore({ onTaskTypeDetected }: UseJarvisCoreProps) {
       console.log('🎤 WAKE WORD CALLBACK: Is voice enabled:', isVoiceEnabled)
       console.log('🎤 WAKE WORD CALLBACK: Callback triggered at:', new Date().toISOString())
       handleStartVoice()
-    }, [handleStartVoice])
+    }, [handleStartVoice, isVoiceEnabled, voiceState])
   })
 
   // Update refs after functions are initialized

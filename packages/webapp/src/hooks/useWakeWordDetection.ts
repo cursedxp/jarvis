@@ -68,7 +68,7 @@ export function useWakeWordDetection({
       ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)
     setIsSupported(supported)
     console.log('🔧 WAKE WORD MOUNTED - Support:', supported, 'enabled:', enabled)
-  }, [])
+  }, [enabled])
   
   // Cooldown period to prevent multiple rapid activations (1 second)
   const COOLDOWN_MS = 1000
@@ -269,7 +269,7 @@ export function useWakeWordDetection({
       setIsListening(false)
       isListeningRef.current = false
     }
-  }, [isMounted, isSupported])
+  }, [isMounted, isSupported, enabled, isInitialized, lastDetectionTime])
 
   // Auto-start/stop based on enabled prop (only after initialization)
   useEffect(() => {

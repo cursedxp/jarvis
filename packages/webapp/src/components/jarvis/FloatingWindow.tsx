@@ -82,7 +82,7 @@ export function FloatingWindow({
         document.removeEventListener('mouseup', handleMouseUp)
       }
     }
-  }, [isDragging, isResizing, dragOffset, position, size])
+  }, [isDragging, isResizing, dragOffset, position, size, isOpen])
 
   const handleMouseDown = (e: React.MouseEvent) => {
     const rect = windowRef.current?.getBoundingClientRect()

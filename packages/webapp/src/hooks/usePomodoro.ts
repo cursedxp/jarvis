@@ -124,7 +124,7 @@ export function usePomodoro({
     setTotalTime(duration)
     setIsRunning(true)
     setShowContinuePrompt(false)
-  }, [])
+  }, [phase])
 
   // Start break timer with specified duration
   const startBreakTimer = useCallback((durationMinutes?: number) => {
@@ -137,7 +137,7 @@ export function usePomodoro({
     setTotalTime(duration)
     setIsRunning(true)
     setShowContinuePrompt(false)
-  }, [])
+  }, [phase])
 
   // Reset to work mode (25-minute ready state)
   const resetToWorkMode = useCallback(() => {

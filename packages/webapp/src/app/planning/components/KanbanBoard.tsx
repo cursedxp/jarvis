@@ -50,7 +50,7 @@ export function KanbanBoard({ tasks, onTaskStatusChange, onEditTask, onDeleteTas
     setActiveTask(task || null)
   }
 
-  const handleDragOver = (event: DragOverEvent) => {
+  const handleDragOver = (_event: DragOverEvent) => {
     // Optional: Handle drag over for visual feedback
   }
 

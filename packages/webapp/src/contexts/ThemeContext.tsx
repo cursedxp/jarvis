@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback } from 'react'
 
 type Theme = 'light' | 'dark' | 'system'
 
@@ -25,12 +25,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }
 
   // Resolve theme based on current setting
-  const resolveTheme = (currentTheme: Theme): 'light' | 'dark' => {
+  const resolveTheme = useCallback((currentTheme: Theme): 'light' | 'dark' => {
     if (currentTheme === 'system') {
       return getSystemTheme()
     }
     return currentTheme
-  }
+  }, [])
 
   // Apply theme to document
   const applyTheme = (resolvedTheme: 'light' | 'dark') => {
@@ -51,7 +51,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
     const resolved = resolveTheme(stored || 'system')
     applyTheme(resolved)
-  }, [])
+  }, [resolveTheme])
 
   // Listen for system theme changes
   useEffect(() => {
@@ -65,7 +65,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
     mediaQuery.addEventListener('change', handleChange)
     return () => mediaQuery.removeEventListener('change', handleChange)
-  }, [theme])
+  }, [theme, resolveTheme])
 
   // Handle theme change
   const handleSetTheme = (newTheme: Theme) => {

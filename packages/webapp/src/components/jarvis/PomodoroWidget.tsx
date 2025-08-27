@@ -84,7 +84,7 @@ export const PomodoroWidget = forwardRef<PomodoroWidgetRef, PomodoroWidgetProps>
     }
   }
 
-  const colors = getColors(phase)
+  const _colors = getColors(phase)
 
   const handleClick = () => {
     if (phase === 'idle' || !isRunning) {

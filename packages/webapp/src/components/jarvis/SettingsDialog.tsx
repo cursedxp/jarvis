@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider"
 import { Switch } from "@/components/ui/switch"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Volume2, Save, TestTube, Moon, Sun, Monitor, Mic } from "lucide-react"
+import { Volume2, Save, Moon, Sun, Monitor, Mic } from "lucide-react"
 import { useTheme } from "@/hooks/useTheme"
 
 interface SettingsDialogProps {
@@ -43,9 +43,9 @@ export function SettingsDialog({
   onSpeechRateChange,
   availableVoices,
   onTestVoice,
-  onSaveSettings,
-  isSpeaking,
-  voiceState,
+  onSaveSettings: _onSaveSettings,
+  isSpeaking: _isSpeaking,
+  voiceState: _voiceState,
   wakeWordEnabled,
   onWakeWordEnabledChange,
   autoVoiceDetection,

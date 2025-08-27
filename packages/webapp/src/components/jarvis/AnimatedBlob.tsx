@@ -8,7 +8,7 @@ interface AnimatedBlobProps {
   isSpeaking: boolean
 }
 
-export function AnimatedBlob({ audioLevel, voiceState, isSpeaking }: AnimatedBlobProps) {
+export function AnimatedBlob({ audioLevel, voiceState, isSpeaking: _isSpeaking }: AnimatedBlobProps) {
   const [scale, setScale] = useState(1)
 
   useEffect(() => {

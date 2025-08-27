@@ -2,9 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Button } from "@/components/ui/button"
-import { io, Socket } from 'socket.io-client'
-import { useJarvisAPI } from '@/hooks/useJarvisAPI'
-import { useConversations } from '@/hooks/useConversations'
+import { io } from 'socket.io-client'
 
 interface Task {
   id: string
@@ -50,7 +48,6 @@ function formatTaskTime(taskId: string): string {
 export default function PlanningClient() {
   const [todayPlan, setTodayPlan] = useState<TodayPlan | null>(null)
   const [loading, setLoading] = useState(true)
-  const [socket, setSocket] = useState<Socket | null>(null)
   const [newTaskTitle, setNewTaskTitle] = useState('')
   const [newTaskDescription, setNewTaskDescription] = useState('')
   const [newTaskPriority, setNewTaskPriority] = useState<'low' | 'medium' | 'high'>('medium')
@@ -65,7 +62,6 @@ export default function PlanningClient() {
     
     // Connect to Socket.IO server for real-time updates
     const socketInstance = io('http://localhost:7777')
-    setSocket(socketInstance)
     
     socketInstance.on('connect', () => {
       console.log('🔌 Connected to planning updates server')
@@ -216,32 +212,6 @@ export default function PlanningClient() {
     }
   }
 
-  const handleTaskStatusChange = async (taskId: string, newStatus: 'todo' | 'in-progress' | 'done') => {
-    try {
-      const response = await fetch('/api/plans/today', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          taskId,
-          status: newStatus,
-          completed: newStatus === 'done'
-        })
-      })
-
-      if (response.ok) {
-        setTodayPlan(prev => prev ? {
-          ...prev,
-          tasks: prev.tasks.map(task => 
-            task.id === taskId 
-              ? { ...task, status: newStatus, completed: newStatus === 'done' } 
-              : task
-          )
-        } : null)
-      }
-    } catch (error) {
-      console.error('Failed to update task status:', error)
-    }
-  }
 
 
   if (loading) {

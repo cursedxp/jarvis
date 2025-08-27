@@ -11,7 +11,7 @@ interface UseAccessibilityOptions {
 export function useAccessibility({
   announceMessages = true,
   keyboardNavigation = true,
-  focusTrap = false
+  focusTrap: _focusTrap = false
 }: UseAccessibilityOptions = {}) {
   const announcementRef = useRef<HTMLDivElement>(null)
 
