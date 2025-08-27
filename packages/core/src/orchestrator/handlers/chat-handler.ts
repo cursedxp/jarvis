@@ -3,13 +3,13 @@ import { Command, Orchestrator } from '../orchestrator';
 import { SystemPromptManager } from '../../prompts/system-prompts';
 import { UserPreferenceManager } from '../../services/user-preferences';
 import { KnowledgeBase } from '../../services/knowledge-base';
-import { mongodbPlanningService } from '../../services/planning-mongodb';
-import { intentAnalyzer } from '../../services/intent-analyzer';
+import { CommandRegistry } from './command-registry';
 
 export class ChatHandler extends BaseHandler {
   private orchestrator: Orchestrator;
   private userPreferences: UserPreferenceManager;
   private knowledgeBase: KnowledgeBase;
+  private commandRegistry?: CommandRegistry;
 
   constructor(
     orchestrator: Orchestrator,
@@ -20,6 +20,10 @@ export class ChatHandler extends BaseHandler {
     this.orchestrator = orchestrator;
     this.userPreferences = userPreferences;
     this.knowledgeBase = knowledgeBase;
+  }
+
+  setCommandRegistry(registry: CommandRegistry) {
+    this.commandRegistry = registry;
   }
 
   getHandlerName(): string {
@@ -50,14 +54,22 @@ export class ChatHandler extends BaseHandler {
   private async handleChat(command: Command): Promise<any> {
     const { message, conversationHistory } = command.payload;
     
-    // AI-POWERED ROUTING - Check if this is a planning-related command
-    console.log('🤖 CHAT HANDLER: Analyzing message with AI-powered routing');
-    if (await this.isIntelligentPlanningRelated(message)) {
-      console.log('🎯 CHAT HANDLER: Routing to Planning Handler via orchestrator');
-      
-      // Route to planning handler - AI understands natural language variations
-      return await this.orchestrator.processWithLLM('This is a planning-related request.');
+    // Check if this is a task management request that should be routed to planning handler
+    if (await this.isTaskManagementRequest(message)) {
+      console.log('🎯 Routing task management request to Planning Handler:', message);
+      if (this.commandRegistry) {
+        try {
+          const planningCommand = { type: 'planning', payload: command.payload };
+          return await this.commandRegistry.handle(planningCommand);
+        } catch (error) {
+          console.error('Command registry error, falling back to chat:', error);
+          // Fall through to regular chat processing
+        }
+      }
     }
+    
+    // Let the LLM handle everything else naturally
+    console.log('💬 Processing message with natural intelligence:', message);
     
     // Detect intent and auto-route to appropriate model
     const taskType = this.detectTaskType(message);
@@ -83,18 +95,8 @@ export class ChatHandler extends BaseHandler {
       minute: '2-digit'
     })}`;
 
-    // Add planning context if available
+    // Don't add planning context automatically - this was forcing task-related responses
     let planningContext = '';
-    try {
-      const todaysPlan = await mongodbPlanningService.getTodaysPlan();
-      if (todaysPlan) {
-        const totalTasks = todaysPlan.tasks.length;
-        const completedTasks = todaysPlan.tasks.filter((t: any) => t.completed).length;
-        planningContext = `\nToday's Planning Context: You have ${totalTasks} tasks (${completedTasks} completed). Goals: ${todaysPlan.goals.join(', ') || 'None set'}.`;
-      }
-    } catch (error) {
-      // Silently fail if planning service unavailable
-    }
     
     let prompt = message;
     if (conversationHistory && conversationHistory.length > 0) {
@@ -161,36 +163,6 @@ export class ChatHandler extends BaseHandler {
 
 
 
-  private async isIntelligentPlanningRelated(message: string): Promise<boolean> {
-    try {
-      // Get current tasks for context
-      const todaysPlan = await mongodbPlanningService.getTodaysPlan();
-      
-      // Use AI-powered intent analysis - understands natural language variations
-      const analysis = await intentAnalyzer.analyzeIntent(message, todaysPlan?.tasks || []);
-      
-      console.log('🤖 CHAT HANDLER: Intent analysis for routing:', {
-        message: message.substring(0, 50) + '...',
-        intent: analysis.intent,
-        confidence: analysis.confidence,
-        reasoning: analysis.reasoning
-      });
-      
-      // Consider it planning-related if we have a known planning intent with reasonable confidence
-      const isPlanningIntent = analysis.intent !== 'UNKNOWN' && analysis.confidence > 0.6;
-      
-      if (isPlanningIntent) {
-        console.log(`🎯 CHAT HANDLER: Routing to Planning Handler - ${analysis.intent} (confidence: ${analysis.confidence})`);
-      } else {
-        console.log(`💬 CHAT HANDLER: Keeping in general chat - ${analysis.intent} (confidence: ${analysis.confidence})`);
-      }
-      
-      return isPlanningIntent;
-    } catch (error) {
-      console.error('🚨 CHAT HANDLER: Error in AI intent analysis, falling back to general chat:', error);
-      return false; // Fall back to general chat on error
-    }
-  }
 
 
   private detectTaskType(message: string): string {
@@ -238,6 +210,37 @@ export class ChatHandler extends BaseHandler {
       case 'conversation':
       default:
         return SystemPromptManager.getMainJarvisPrompt();
+    }
+  }
+
+  private async isTaskManagementRequest(message: string): Promise<boolean> {
+    const lowerMessage = message.toLowerCase();
+    
+    // Clear task management keywords - only route obvious task management requests
+    const taskActionKeywords = [
+      'add task', 'create task', 'new task', 'make a task',
+      'delete task', 'remove task', 'complete task', 'mark task', 'finish task',
+      'move task', 'update task', 'edit task', 'change task',
+      'show tasks', 'list tasks', 'list all tasks', 'my tasks', 'view tasks',
+      'clear all tasks', 'delete all tasks'
+    ];
+    
+    // Only route if there's a clear task management action
+    const isTaskAction = taskActionKeywords.some(keyword => lowerMessage.includes(keyword));
+    
+    // Don't route vague requests - let chat handler ask clarifying questions
+    const vagueRequests = [
+      'i need tasks', 'some tasks', 'tasks for', 'help with tasks',
+      'what should i do', 'what can i do', 'give me something to do'
+    ];
+    const isVague = vagueRequests.some(phrase => lowerMessage.includes(phrase));
+    
+    if (isTaskAction && !isVague) {
+      console.log('🎯 ROUTING: Clear task action detected:', message.substring(0, 50));
+      return true;
+    } else {
+      console.log('💬 ROUTING: Keeping in chat for natural conversation:', message.substring(0, 50));
+      return false;
     }
   }
 }

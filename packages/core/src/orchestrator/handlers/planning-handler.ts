@@ -1,15 +1,19 @@
 import { BaseHandler } from './base-handler';
 import { Command, Orchestrator } from '../orchestrator';
 import { mongodbPlanningService } from '../../services/planning-mongodb';
-import { intentAnalyzer } from '../../services/intent-analyzer';
+import { intentAnalyzer, setIntentAnalyzerOrchestrator } from '../../services/intent-analyzer';
 import { taskGenerator } from '../../services/task-generator';
 
 export class PlanningHandler extends BaseHandler {
   private io?: any;
+  private orchestrator: Orchestrator;
   
-  constructor(_orchestrator: Orchestrator, io?: any) {
+  constructor(orchestrator: Orchestrator, io?: any) {
     super();
+    this.orchestrator = orchestrator;
     this.io = io;
+    // Set the orchestrator reference for LLM-based intent analysis
+    setIntentAnalyzerOrchestrator(orchestrator);
     console.log('📡 PLANNING HANDLER: Initialized with Socket.IO instance:', !!io);
   }
 
@@ -43,13 +47,15 @@ export class PlanningHandler extends BaseHandler {
       // Handle based on detected intent
       switch (analysis.intent) {
         case 'GENERATE_TASKS':
-          if (analysis.entities.count && analysis.entities.taskType) {
-            console.log(`✅ AI HANDLER: Generating ${analysis.entities.count} ${analysis.entities.taskType} tasks`);
+          if (analysis.entities.count) {
+            const taskType = analysis.entities.taskType || 'general';
+            const taskCount = analysis.entities.count || 5;
+            console.log(`✅ AI HANDLER: Generating ${taskCount} ${taskType} tasks`);
             
             try {
               const generatedTasks = await taskGenerator.generateTasks(
-                analysis.entities.count,
-                analysis.entities.taskType,
+                taskCount,
+                taskType,
                 analysis.entities.timeframe || 'today'
               );
               
@@ -72,7 +78,7 @@ export class PlanningHandler extends BaseHandler {
                 for (const taskTitle of addedTasks) {
                   this.io.emit('planning_updated', {
                     action: 'task_added',
-                    task: { title: taskTitle, description: `AI-generated ${analysis.entities.taskType} task`, priority: 'medium' },
+                    task: { title: taskTitle, description: `AI-generated ${taskType} task`, priority: 'medium' },
                     timestamp: new Date()
                   });
                 }
@@ -81,7 +87,7 @@ export class PlanningHandler extends BaseHandler {
               return {
                 type: 'planning-response',
                 content: addedTasks.length > 0 
-                  ? `Generated ${addedTasks.length} ${analysis.entities.taskType} tasks for you: ${addedTasks.slice(0, 3).join(', ')}${addedTasks.length > 3 ? ` and ${addedTasks.length - 3} more` : ''}` 
+                  ? `Generated ${addedTasks.length} ${taskType} tasks for you: ${addedTasks.slice(0, 3).join(', ')}${addedTasks.length > 3 ? ` and ${addedTasks.length - 3} more` : ''}` 
                   : `Failed to generate tasks`,
                 success: addedTasks.length > 0
               };
@@ -97,30 +103,33 @@ export class PlanningHandler extends BaseHandler {
           break;
           
         case 'ADD_TASK':
-          if (analysis.entities.taskName) {
-            console.log(`✅ AI HANDLER: Adding task "${analysis.entities.taskName}"`);
-            const result = await mongodbPlanningService.addTask({
-              title: analysis.entities.taskName,
-              description: 'Task added via AI voice command',
-              priority: 'medium'
+          console.log(`✅ AI HANDLER: Using AI to understand task intent from: "${message}"`);
+          
+          // Let AI naturally understand the task from the full message
+          const taskTitle = await this.generateSmartTaskTitle(message, analysis.entities.taskName || 'New task');
+          
+          console.log(`✅ AI HANDLER: Adding task "${taskTitle}"`);
+          const result = await mongodbPlanningService.addTask({
+            title: taskTitle,
+            description: 'Task added via AI voice command',
+            priority: 'medium'
+          });
+          
+          // Emit Socket.IO event for real-time frontend updates
+          if (result && this.io) {
+            console.log(`📡 AI HANDLER: Emitting Socket.IO event - task_added: ${taskTitle}`);
+            this.io.emit('planning_updated', {
+              action: 'task_added',
+              task: { title: taskTitle, description: 'Task added via AI voice command', priority: 'medium' },
+              timestamp: new Date()
             });
-            
-            // Emit Socket.IO event for real-time frontend updates
-            if (result && this.io) {
-              console.log(`📡 AI HANDLER: Emitting Socket.IO event - task_added: ${analysis.entities.taskName}`);
-              this.io.emit('planning_updated', {
-                action: 'task_added',
-                task: { title: analysis.entities.taskName, description: 'Task added via AI voice command', priority: 'medium' },
-                timestamp: new Date()
-              });
-            }
-            
-            return {
-              type: 'planning-response',
-              content: result ? `Task "${analysis.entities.taskName}" added to your plan` : `Failed to add task "${analysis.entities.taskName}"`,
-              success: result
-            };
           }
+          
+          return {
+            type: 'planning-response',
+            content: result ? `Task "${taskTitle}" added to your plan` : `Failed to add task "${taskTitle}"`,
+            success: result
+          };
           break;
           
         case 'MOVE_TASK':
@@ -201,10 +210,10 @@ export class PlanningHandler extends BaseHandler {
 
         case 'DELETE_ALL_TASKS':
           console.log('✅ AI HANDLER: Deleting ALL tasks...');
-          const result = await mongodbPlanningService.deleteAllTasks();
+          const deleteResult = await mongodbPlanningService.deleteAllTasks();
           
           // Emit Socket.IO event for real-time frontend updates
-          if (result && this.io) {
+          if (deleteResult && this.io) {
             console.log('📡 AI HANDLER: Emitting Socket.IO event - all_tasks_deleted');
             this.io.emit('planning_updated', {
               action: 'all_tasks_deleted',
@@ -214,8 +223,8 @@ export class PlanningHandler extends BaseHandler {
           
           return {
             type: 'planning-response',
-            content: result ? 'All tasks cleared from your plan' : 'Failed to clear all tasks',
-            success: result
+            content: deleteResult ? 'All tasks cleared from your plan' : 'Failed to clear all tasks',
+            success: deleteResult
           };
           
         case 'UNKNOWN':
@@ -235,6 +244,47 @@ export class PlanningHandler extends BaseHandler {
         content: `I encountered an error while processing your request: ${error instanceof Error ? error.message : 'Unknown error'}`,
         success: false
       };
+    }
+  }
+
+  private async generateSmartTaskTitle(originalMessage: string, fallbackTitle: string): Promise<string> {
+    try {
+      // Simple, direct AI prompt - let AI naturally understand the intent
+      const aiPrompt = `What task does this person want to create?
+
+"${originalMessage}"
+
+Reply with just a short, clear task title (like "Send vehicle title to company" or "Call doctor"):`;
+
+      const aiResponse = await this.orchestrator.processWithLLM(aiPrompt);
+      
+      // Clean up the AI response
+      const smartTitle = aiResponse.trim()
+        .replace(/^["']|["']$/g, '') // Remove quotes
+        .replace(/^(Task:|Title:)\s*/i, '') // Remove prefixes
+        .replace(/^\d+\.\s*/, '') // Remove numbering
+        .replace(/^-\s*/, '') // Remove dashes
+        .split('\n')[0] // Take first line only
+        .trim();
+
+      // Simple validation - if AI gave a reasonable response, use it
+      if (smartTitle && smartTitle.length > 3 && smartTitle.length < 80) {
+        console.log(`🤖 AI understood intent: "${smartTitle}"`);
+        return smartTitle.charAt(0).toUpperCase() + smartTitle.slice(1);
+      }
+      
+      console.log(`⚠️ AI response unclear, using fallback: "${fallbackTitle}"`);
+      return fallbackTitle;
+      
+    } catch (error) {
+      console.error('🚨 Error with AI task understanding:', error);
+      // Simple fallback extraction
+      const simple = originalMessage
+        .replace(/^.*(need to|want to|remind me to)\s+/i, '')
+        .replace(/\s+so\s+(create|add|make).*/i, '')
+        .trim();
+      
+      return simple.length > 3 ? simple.charAt(0).toUpperCase() + simple.slice(1) : fallbackTitle;
     }
   }
 }

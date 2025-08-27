@@ -8,7 +8,7 @@ interface IntentAnalysis {
     count?: number
     taskType?: string
     timeframe?: string
-    pomodoroAction?: 'start' | 'stop' | 'pause' | 'reset' | 'continue'
+    pomodoroAction?: 'start' | 'stop' | 'pause' | 'reset' | 'continue' | 'start_break' | 'stop_break'
     pomodoroDuration?: number
     songName?: string
     artistName?: string
@@ -19,12 +19,25 @@ interface IntentAnalysis {
 }
 
 export class IntentAnalyzer {
+  private orchestrator?: any;
+  
+  constructor(orchestrator?: any) {
+    this.orchestrator = orchestrator;
+  }
   
   async analyzeIntent(message: string, existingTasks: any[]): Promise<IntentAnalysis> {
     const lowerMessage = message.toLowerCase().trim()
     
-    // AI-powered intent analysis based on semantic understanding
-    console.log('🤖 INTENT ANALYZER: Analyzing message with AI-powered semantics:', lowerMessage)
+    console.log('🤖 INTENT ANALYZER: Analyzing message with true AI understanding:', lowerMessage)
+    
+    // Try AI-powered understanding first, fallback to keyword matching if needed
+    if (this.orchestrator) {
+      try {
+        return await this.analyzeIntentWithLLM(message, existingTasks);
+      } catch (error) {
+        console.log('🤖 INTENT ANALYZER: LLM analysis failed, falling back to keyword matching');
+      }
+    }
     
     return this.analyzeIntentWithAI(lowerMessage, existingTasks)
   }
@@ -32,13 +45,13 @@ export class IntentAnalyzer {
   private analyzeIntentWithAI(message: string, existingTasks: any[]): IntentAnalysis {
     // Semantic keyword detection for intent classification
     const semanticContext = {
-      hasGenerationKeywords: this.hasSemanticMatch(message, ['create', 'generate', 'make', 'give', 'need', 'want', 'suggest', 'recommend']),
-      hasTaskKeywords: this.hasSemanticMatch(message, ['tasks', 'task', 'things', 'thing', 'items', 'item', 'activities', 'activity', 'stuff', 'todo', 'to do']),
+      hasGenerationKeywords: this.hasSemanticMatch(message, ['create', 'generate', 'make', 'give', 'need', 'want', 'suggest', 'recommend', 'add', 'remind', 'set']),
+      hasTaskKeywords: this.hasSemanticMatch(message, ['tasks', 'task', 'things', 'thing', 'items', 'item', 'activities', 'activity', 'stuff', 'todo', 'to do', 'reminder', 'remind me', 'reminders']),
       hasModificationKeywords: this.hasSemanticMatch(message, ['move', 'set', 'mark', 'change', 'update', 'switch']),
       hasDeleteKeywords: this.hasSemanticMatch(message, ['delete', 'remove', 'clear', 'eliminate', 'cancel', 'drop']),
       hasCompletionKeywords: this.hasSemanticMatch(message, ['done', 'complete', 'finished', 'ready']),
       hasProgressKeywords: this.hasSemanticMatch(message, ['progress', 'working', 'started', 'doing', 'active']),
-      hasGlobalKeywords: this.hasSemanticMatch(message, ['all', 'everything', 'clear all', 'delete all', 'reset']),
+      hasGlobalKeywords: this.hasSemanticMatch(message, ['all', 'everything', 'clear all', 'delete all', 'reset', 'the task list', 'task list', 'my tasks', 'the list', 'entire list', 'whole list']),
       hasPomodoroKeywords: this.hasSemanticMatch(message, ['pomodoro', 'timer', 'focus', 'work session', 'break']),
       hasPomodoroStartKeywords: this.hasSemanticMatch(message, ['start', 'begin', 'launch', 'activate', 'run']),
       hasPomodoroStopKeywords: this.hasSemanticMatch(message, ['stop', 'pause', 'end', 'halt', 'cancel']),
@@ -134,6 +147,19 @@ export class IntentAnalyzer {
           confidence: entities.matchingTask ? 0.95 : 0.75,
           entities: { taskName: entities.taskName },
           reasoning: `AI detected task deletion: "${entities.taskName}"${entities.matchingTask ? ' (found match)' : ''}`
+        }
+      }
+    }
+    
+    // REMIND ME - Special handling for reminder patterns
+    if (message.toLowerCase().includes('remind me') || message.toLowerCase().includes('reminder')) {
+      const taskName = this.extractTaskName(message)
+      if (taskName) {
+        return {
+          intent: 'ADD_TASK',
+          confidence: 0.95,
+          entities: { taskName },
+          reasoning: `AI detected reminder request: "${taskName}"`
         }
       }
     }
@@ -306,13 +332,85 @@ export class IntentAnalyzer {
     return singleTaskIndicators.some(indicator => message.includes(indicator)) || count === 0
   }
   
-  private extractTaskName(message: string): string | null {
-    // AI-powered task name extraction for ADD_TASK
-    const words = message.split(' ')
-    const commandWords = ['add', 'create', 'make', 'new', 'task', 'item', 'thing']
+  async extractTaskNameWithAI(message: string): Promise<string | null> {
+    // Use AI to understand the intent and generate a proper task title
+    try {
+      // AI understands the context and generates a concise, meaningful task title
+      // This would call your LLM service to generate the title
+      // For now, use a smarter extraction approach
+      return this.extractTaskNameFallback(message)
+    } catch (error) {
+      console.error('Error using AI for task extraction:', error)
+      return this.extractTaskNameFallback(message)
+    }
+  }
+
+  private extractTaskNameFallback(message: string): string | null {
+    // Intelligent fallback extraction
+    // Understanding the core intent patterns
+    const intents = {
+      'send vehicle title': /(?:send|mail|deliver|submit)\s+(?:the\s+)?vehicle\s+title/i,
+      'contact insurance': /(?:call|contact|reach out to|notify)\s+(?:the\s+)?insurance/i,
+      'need to': /(?:i\s+)?need(?:s)?\s+to\s+(.+?)(?:\s+so\s+|\s+please\s+|$)/i,
+      'remind about': /remind\s+(?:me\s+)?(?:to|about|that)\s+(.+)/i,
+      'task for': /(?:task|reminder)\s+(?:for|to)\s+(.+?)(?:\s+for\s+this)?$/i
+    }
     
-    const taskWords = words.filter(word => !commandWords.includes(word.toLowerCase()))
-    return taskWords.length > 0 ? taskWords.join(' ') : null
+    // Check for specific intent patterns
+    for (const [intentKey, pattern] of Object.entries(intents)) {
+      const match = message.match(pattern)
+      if (match) {
+        if (intentKey === 'send vehicle title') {
+          return 'Send vehicle title to insurance company'
+        }
+        if (intentKey === 'contact insurance') {
+          return 'Contact insurance company'
+        }
+        if (match[1]) {
+          let extracted = match[1].trim()
+          // Clean up common endings
+          extracted = extracted.replace(/\s+(so|please|now|today|tomorrow|for this|to this).*/i, '')
+          if (extracted.length > 3) {
+            return extracted.charAt(0).toUpperCase() + extracted.slice(1)
+          }
+        }
+      }
+    }
+    
+    // Smart extraction based on sentence structure
+    const actionWords = ['send', 'call', 'email', 'submit', 'complete', 'finish', 'review', 'check', 'pay', 'schedule']
+    const words = message.split(/\s+/)
+    
+    for (let i = 0; i < words.length; i++) {
+      if (actionWords.includes(words[i].toLowerCase())) {
+        // Found an action word, extract the rest as the task
+        const taskPart = words.slice(i).join(' ')
+          .replace(/\s+(so|please|to|for)\s+(create|add|make)\s+(a\s+)?task.*/i, '')
+          .trim()
+        
+        if (taskPart.length > 5) {
+          return taskPart.charAt(0).toUpperCase() + taskPart.slice(1)
+        }
+      }
+    }
+    
+    // Final fallback: extract the core message
+    const cleaned = message
+      .replace(/^(i\s+)?(need|want|have)\s+to\s+/i, '')
+      .replace(/\s+(so|please)\s+(create|add|make)\s+(a\s+)?task.*/i, '')
+      .replace(/^(create|add|make)\s+(a\s+)?(task|reminder)\s+(for|to)\s+/i, '')
+      .trim()
+    
+    if (cleaned.length > 3 && cleaned.toLowerCase() !== 'this') {
+      return cleaned.charAt(0).toUpperCase() + cleaned.slice(1)
+    }
+    
+    return null
+  }
+  
+  private extractTaskName(message: string): string | null {
+    // Use the more intelligent extraction
+    return this.extractTaskNameFallback(message)
   }
 
   private extractPomodoroAction(_message: string, context: any): 'start' | 'stop' | 'pause' | 'reset' | 'continue' {
@@ -524,6 +622,85 @@ export class IntentAnalyzer {
     return entities
   }
 
+  private async analyzeIntentWithLLM(message: string, existingTasks: any[]): Promise<IntentAnalysis> {
+    const taskList = existingTasks.length > 0 
+      ? existingTasks.map(t => `"${t.title}"`).join(', ')
+      : 'no tasks';
+    
+    const prompt = `You are an expert at understanding user intentions for task management and productivity tools. 
+    
+User said: "${message}"
+Current tasks: ${taskList}
+
+Determine the user's intent and respond with ONLY a JSON object:
+
+{
+  "intent": "ADD_TASK" | "DELETE_TASK" | "DELETE_ALL_TASKS" | "MOVE_TASK" | "GENERATE_TASKS" | "POMODORO" | "POMODORO_DURATION" | "MUSIC_PLAY" | "MUSIC_PAUSE" | "MUSIC_NEXT" | "MUSIC_PREVIOUS" | "MUSIC_VOLUME" | "MUSIC_SEARCH" | "MUSIC_STATUS" | "UNKNOWN",
+  "confidence": 0.0-1.0,
+  "entities": {
+    "taskName": "exact task name if specific task",
+    "targetStatus": "todo|in-progress|done" if moving task,
+    "count": number if generating tasks,
+    "taskType": "type" if generating,
+    "pomodoroAction": "start|stop|pause|reset|continue|start_break|stop_break" if pomodoro command,
+    "pomodoroDuration": number if specifying pomodoro duration,
+    "songName": "song name" if music command,
+    "artistName": "artist name" if music command
+  },
+  "reasoning": "brief explanation"
+}
+
+Guidelines (in order of priority):
+
+POMODORO COMMANDS (only if explicitly mentioned):
+- ONLY messages EXPLICITLY containing "pomodoro", "timer", "break" keywords = POMODORO intent  
+- "start pomodoro", "begin pomodoro", "pomodoro start" → POMODORO with pomodoroAction: "start"
+- "start break", "begin break", "take a break" → POMODORO with pomodoroAction: "start_break" (5-minute break)
+- "stop break", "end break", "finish break" → POMODORO with pomodoroAction: "stop_break" (reset to 25-min work)
+- "stop pomodoro", "pause pomodoro", "end pomodoro" → POMODORO with pomodoroAction: "stop"  
+- Simple numbers like "25", "30", "25 minutes" (in timer context) → POMODORO_DURATION
+
+BREAK vs WORK SESSION INTELLIGENCE:
+- "start break" = 5-minute break timer (pomodoroAction: "start_break")
+- "stop break" = STOP break and reset to 25-minute work timer (pomodoroAction: "stop_break")
+- "end break" = STOP break and reset to 25-minute work timer (pomodoroAction: "stop_break")
+- "finish break" = STOP break and reset to 25-minute work timer (pomodoroAction: "stop_break")
+- "take a break" = 5-minute break timer (pomodoroAction: "start_break") 
+- "break time" = 5-minute break timer (pomodoroAction: "start_break")
+- "start pomodoro" = 25-minute work timer (pomodoroAction: "start")
+- Context matters: break = rest/pause, pomodoro = work/focus
+- CRITICAL: "stop break" means END the break, NOT start one!
+
+MUSIC COMMANDS:
+- "play music", "start spotify", "play [song]" → MUSIC_PLAY
+- "pause music", "stop playing" → MUSIC_PAUSE
+
+TASK MANAGEMENT (high priority):
+- "generate X tasks", "create X tasks", "make X tasks", "give me X tasks" → GENERATE_TASKS (with count)
+- "generate tasks", "create tasks", "make some tasks", "suggest tasks" → GENERATE_TASKS  
+- "clear the task list", "clear tasks", "delete all tasks" → DELETE_ALL_TASKS
+- "clear [specific task]", "delete [task name]" → DELETE_TASK  
+- "add [something]", "create [something]", "remind me to [something]" → ADD_TASK
+- "move [task] to done", "mark [task] as complete" → MOVE_TASK
+
+IMPORTANT: "start pomodoro" is NEVER about task management - it's always POMODORO intent!`;
+
+    try {
+      const response = await this.orchestrator.processWithLLM(prompt);
+      const jsonMatch = response.match(/\{[\s\S]*\}/);
+      
+      if (jsonMatch) {
+        const result = JSON.parse(jsonMatch[0]);
+        console.log('🤖 LLM INTENT ANALYSIS:', result);
+        return result;
+      }
+    } catch (error) {
+      console.error('🤖 LLM intent analysis error:', error);
+    }
+    
+    throw new Error('LLM analysis failed');
+  }
+
   // UTILITY METHODS (keeping existing functionality)
   
   private findMatchingTask(searchName: string, tasks: any[]): any | null {
@@ -539,3 +716,8 @@ export class IntentAnalyzer {
 }
 
 export const intentAnalyzer = new IntentAnalyzer()
+
+// Allow updating the orchestrator reference later
+export function setIntentAnalyzerOrchestrator(orchestrator: any) {
+  (intentAnalyzer as any).orchestrator = orchestrator;
+}

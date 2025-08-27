@@ -55,24 +55,60 @@ export class PomodoroHandler extends BaseHandler {
       // Handle Pomodoro-specific intents
       switch (analysis.intent) {
         case 'POMODORO_DURATION':
-          if (analysis.entities.pomodoroDuration) {
-            const duration = analysis.entities.pomodoroDuration;
+          // Handle duration from multiple possible entity fields
+          const duration = analysis.entities?.pomodoroDuration || 
+                           (analysis.entities?.count ? parseInt(String(analysis.entities.count)) : undefined) || 
+                           PomodoroService.parseDuration(message);
+          
+          if (duration && duration > 0) {
             console.log(`🍅 POMODORO HANDLER: Starting ${duration}-minute Pomodoro session from duration response`);
             this.pomodoroService!.startWorkSession(duration);
             
             return {
               type: 'pomodoro-response',
-              content: `Your Pomodoro is set for ${duration} minutes. Focus on the task, and when done, type "break" to take a short rest.`,
+              content: `Your ${duration}-minute Pomodoro work session has started! Stay focused. When time's up, I'll automatically start your 5-minute break.`,
               success: true
             };
           }
           break;
 
         case 'POMODORO':
-          console.log(`🍅 POMODORO HANDLER: Processing Pomodoro ${analysis.entities.pomodoroAction} command`);
+          console.log(`🍅 POMODORO HANDLER: Processing Pomodoro ${analysis.entities?.pomodoroAction || 'start'} command`);
           
-          if (analysis.entities.pomodoroAction === 'start') {
-            // Check if user provided duration or ask for it
+          const pomodoroAction = analysis.entities?.pomodoroAction || 'start'; // Default to 'start' if null
+          
+          if (pomodoroAction === 'start_break') {
+            // Start a 5-minute break session
+            console.log(`🍅 POMODORO HANDLER: Starting 5-minute break session`);
+            this.pomodoroService!.startBreakSession(5);
+            
+            return {
+              type: 'pomodoro-response',
+              content: `Break time! Starting your 5-minute break. Relax and recharge!`,
+              success: true
+            };
+          } else if (pomodoroAction === 'stop_break') {
+            // Stop break and reset to 25-minute work timer (ready state)
+            console.log(`🍅 POMODORO HANDLER: Stopping break and resetting to 25-minute work timer`);
+            this.pomodoroService!.stopSession();
+            
+            // Emit sync to reset frontend widget to 25-minute work timer
+            if (this._io) {
+              this._io.emit('pomodoro_sync', {
+                action: 'reset_to_work',
+                phase: 'idle',
+                duration: 25,
+                timestamp: new Date()
+              });
+            }
+            
+            return {
+              type: 'pomodoro-response',
+              content: `Break stopped. Ready for a 25-minute work session when you are!`,
+              success: true
+            };
+          } else if (pomodoroAction === 'start') {
+            // Check if user provided duration or use default
             const duration = PomodoroService.parseDuration(message);
             if (duration > 0 && message.match(/\d+/)) {
               // Duration provided, start session
@@ -85,14 +121,31 @@ export class PomodoroHandler extends BaseHandler {
                 success: true
               };
             } else {
-              // Ask for duration
-              return {
-                type: 'pomodoro-response', 
-                content: 'Your first Pomodoro session has started. I\'ll guide you through it. How many minutes would you like your Pomodoro to be?',
-                success: true
-              };
+              // Check if there's already a session running  
+              const currentSession = this.pomodoroService!.getCurrentSession();
+              if (currentSession) {
+                // Reset and start new 25-minute session (regardless of current state)
+                console.log(`🍅 POMODORO HANDLER: Resetting existing ${currentSession.phase} session and starting new 25-minute Pomodoro`);
+                this.pomodoroService!.startWorkSession(25);
+                
+                return {
+                  type: 'pomodoro-response',
+                  content: `Pomodoro reset! Starting fresh 25-minute work session. Stay focused!`,
+                  success: true
+                };
+              } else {
+                // No existing session - start default 25-minute session
+                console.log(`🍅 POMODORO HANDLER: Starting default 25-minute Pomodoro session`);
+                this.pomodoroService!.startWorkSession(25);
+                
+                return {
+                  type: 'pomodoro-response',
+                  content: `Your 25-minute Pomodoro work session has started! Stay focused. When time's up, I'll automatically start your 5-minute break.`,
+                  success: true
+                };
+              }
             }
-          } else if (analysis.entities.pomodoroAction === 'continue') {
+          } else if (pomodoroAction === 'continue') {
             console.log('🍅 POMODORO HANDLER: Continuing to next Pomodoro session');
             this.pomodoroService!.continueToNextSession(25);
             return {
@@ -100,7 +153,7 @@ export class PomodoroHandler extends BaseHandler {
               content: 'Starting your next 25-minute Pomodoro session! Stay focused.',
               success: true
             };
-          } else if (analysis.entities.pomodoroAction === 'stop') {
+          } else if (pomodoroAction === 'stop') {
             this.pomodoroService!.stopSession();
             return {
               type: 'pomodoro-response',
