@@ -18,12 +18,14 @@
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
+    "@types/puppeteer": "^5.4.7",
     "@typescript-eslint/eslint-plugin": "^6.19.0",
     "@typescript-eslint/parser": "^6.19.0",
     "eslint": "^8.56.0",
     "husky": "^9.1.7",
     "lint-staged": "^16.1.5",
     "prettier": "^3.2.4",
+    "puppeteer": "^24.17.0",
     "tsx": "^4.7.0",
     "typescript": "^5.3.3"
   },
