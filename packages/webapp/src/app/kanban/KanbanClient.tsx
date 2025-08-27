@@ -24,6 +24,7 @@ export default function KanbanClient() {
   const [loading, setLoading] = useState(true)
   const [socket, setSocket] = useState<Socket | null>(null)
 
+
   useEffect(() => {
     fetchTodayPlan()
     
@@ -109,6 +110,7 @@ export default function KanbanClient() {
     }
   }
 
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -183,7 +185,7 @@ export default function KanbanClient() {
 
         {/* Kanban Board */}
         <KanbanBoard
-          tasks={todayPlan.tasks}
+          tasks={todayPlan.tasks.sort((a, b) => Number(b.id) - Number(a.id))}
           onTaskStatusChange={handleTaskStatusChange}
           onEditTask={handleEditTask}
           onDeleteTask={handleDeleteTask}

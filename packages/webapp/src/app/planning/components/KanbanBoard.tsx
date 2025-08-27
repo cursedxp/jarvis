@@ -39,10 +39,10 @@ export function KanbanBoard({ tasks, onTaskStatusChange, onEditTask, onDeleteTas
     })
   )
 
-  // Group tasks by status
-  const todoTasks = tasks.filter(task => task.status === 'todo')
-  const inProgressTasks = tasks.filter(task => task.status === 'in-progress')
-  const doneTasks = tasks.filter(task => task.status === 'done')
+  // Group tasks by status and sort by newest first
+  const todoTasks = tasks.filter(task => task.status === 'todo').sort((a, b) => Number(b.id) - Number(a.id))
+  const inProgressTasks = tasks.filter(task => task.status === 'in-progress').sort((a, b) => Number(b.id) - Number(a.id))
+  const doneTasks = tasks.filter(task => task.status === 'done').sort((a, b) => Number(b.id) - Number(a.id))
 
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event

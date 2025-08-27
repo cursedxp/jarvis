@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react'
 import { Button } from "@/components/ui/button"
 import { io, Socket } from 'socket.io-client'
+import { useJarvisAPI } from '@/hooks/useJarvisAPI'
+import { useConversations } from '@/hooks/useConversations'
 
 interface Task {
   id: string
@@ -56,6 +58,7 @@ export default function PlanningClient() {
   const [editTitle, setEditTitle] = useState('')
   const [editDescription, setEditDescription] = useState('')
   const [editPriority, setEditPriority] = useState<'low' | 'medium' | 'high'>('medium')
+
 
   useEffect(() => {
     fetchTodayPlan()
@@ -240,6 +243,7 @@ export default function PlanningClient() {
     }
   }
 
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -261,10 +265,10 @@ export default function PlanningClient() {
   const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
 
   return (
-    <div className="min-h-screen bg-background p-4">
-      <div className="max-w-6xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-bold text-foreground">Today's Planning</h1>
+    <div className="h-full bg-background flex flex-col">
+      <div className="flex-1 flex flex-col p-4 overflow-hidden">
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-2xl font-bold text-foreground">Today's Planning</h1>
           <div className="flex items-center gap-4">
             <div className="text-cyan-300">
               {new Date().toLocaleDateString('en-US', {
@@ -277,30 +281,31 @@ export default function PlanningClient() {
           </div>
         </div>
 
-        <div className="grid grid-cols-4 gap-4 mb-6">
-          <div className="bg-gray-800/50 p-4 rounded-lg text-center border border-cyan-500/20">
+        <div className="grid grid-cols-4 gap-4 mb-4">
+          <div className="bg-gray-800/50 p-3 rounded-lg text-center border border-cyan-500/20">
             <div className="text-2xl font-bold text-foreground">{totalTasks}</div>
             <div className="text-sm text-gray-400">Total Tasks</div>
           </div>
-          <div className="bg-gray-800/50 p-4 rounded-lg text-center border border-cyan-500/20">
+          <div className="bg-gray-800/50 p-3 rounded-lg text-center border border-cyan-500/20">
             <div className="text-2xl font-bold text-green-400">{completedTasks}</div>
             <div className="text-sm text-gray-400">Completed</div>
           </div>
-          <div className="bg-gray-800/50 p-4 rounded-lg text-center border border-cyan-500/20">
+          <div className="bg-gray-800/50 p-3 rounded-lg text-center border border-cyan-500/20">
             <div className="text-2xl font-bold text-yellow-400">{totalTasks - completedTasks}</div>
             <div className="text-sm text-gray-400">Remaining</div>
           </div>
-          <div className="bg-gray-800/50 p-4 rounded-lg text-center border border-cyan-500/20">
+          <div className="bg-gray-800/50 p-3 rounded-lg text-center border border-cyan-500/20">
             <div className="text-2xl font-bold text-foreground">{completionRate}%</div>
             <div className="text-sm text-gray-400">Progress</div>
           </div>
         </div>
 
-        <div className="space-y-4">
-          <h2 className="text-xl font-semibold text-foreground">Tasks</h2>
+        {/* Tasks Section - Fixed header with scrollable content */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <h2 className="text-xl font-semibold text-foreground mb-3">Tasks</h2>
           
-          {/* Add Task Form */}
-              <form onSubmit={addTask} className="bg-gray-800/30 p-4 rounded-lg border border-cyan-500/20">
+          {/* Add Task Form - Fixed at top */}
+          <form onSubmit={addTask} className="bg-gray-800/30 p-4 rounded-lg border border-cyan-500/20 mb-4">
             <div className="space-y-3">
               <input
                 type="text"
@@ -337,10 +342,12 @@ export default function PlanningClient() {
             </div>
           </form>
 
-          {todayPlan.tasks
-            .sort((a, b) => Number(b.id) - Number(a.id)) // Sort by ID descending (newest first)
-            .map((task) => (
-            <div key={task.id} className="bg-gray-800/30 p-4 rounded-lg border border-cyan-500/20">
+          {/* Scrollable Task List */}
+          <div className="flex-1 overflow-y-auto space-y-4 pr-2">
+            {todayPlan.tasks
+              .sort((a, b) => Number(b.id) - Number(a.id)) // Sort by ID descending (newest first)
+              .map((task) => (
+              <div key={task.id} className="bg-gray-800/30 p-4 rounded-lg border border-cyan-500/20">
               {editingTask === task.id ? (
                 // Edit mode
                 <div className="space-y-3">
@@ -444,6 +451,7 @@ export default function PlanningClient() {
               )}
             </div>
           ))}
+          </div>
         </div>
       </div>
     </div>
