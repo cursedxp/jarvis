@@ -26,6 +26,10 @@ export async function spotifyRoutes(
       "http://localhost:7777/auth/spotify/callback",
   );
 
+  // Cache for playback data
+  let playbackCache: { data: any; timestamp: number } | null = null;
+  const CACHE_DURATION = 2000; // Cache for 2 seconds
+
   // Get Spotify authorization URL
   fastify.get(
     "/auth/spotify",
@@ -269,6 +273,15 @@ export async function spotifyRoutes(
     "/spotify/playback",
     async (_request: FastifyRequest, reply: FastifyReply) => {
       try {
+        // Check cache first
+        if (playbackCache && Date.now() - playbackCache.timestamp < CACHE_DURATION) {
+          return reply.send({
+            success: true,
+            playback: playbackCache.data,
+            cached: true,
+          });
+        }
+
         const tokens = userPreferences.getSpotifyTokens();
         if (!tokens) {
           return reply.code(401).send({
@@ -290,11 +303,28 @@ export async function spotifyRoutes(
           validTokens.access_token,
         );
 
+        // Update cache
+        playbackCache = {
+          data: playback,
+          timestamp: Date.now(),
+        };
+
         return reply.send({
           success: true,
           playback,
+          cached: false,
         });
-      } catch (error) {
+      } catch (error: any) {
+        // If rate limited, return cached data if available
+        if (error.response?.status === 429 && playbackCache) {
+          return reply.send({
+            success: true,
+            playback: playbackCache.data,
+            cached: true,
+            rateLimited: true,
+          });
+        }
+
         fastify.log.error(
           `Error getting Spotify playback: ${error instanceof Error ? error.message : String(error)}`,
         );

@@ -45,6 +45,9 @@ export class SpotifyService {
   private redirectUri: string;
   private baseUrl = 'https://api.spotify.com/v1';
   private authUrl = 'https://accounts.spotify.com';
+  private lastRequestTime: number = 0;
+  private minRequestInterval: number = 1000; // Minimum 1 second between requests
+  private retryAfter: number = 0;
 
   constructor(clientId: string, clientSecret: string, redirectUri: string) {
     this.clientId = clientId;
@@ -124,6 +127,9 @@ export class SpotifyService {
   }
 
   async getCurrentPlayback(accessToken: string): Promise<SpotifyPlaybackState | null> {
+    // Check rate limiting
+    await this.checkRateLimit();
+    
     try {
       const response = await axios.get(`${this.baseUrl}/me/player`, {
         headers: {
@@ -131,12 +137,20 @@ export class SpotifyService {
         }
       });
 
+      this.lastRequestTime = Date.now();
       return response.data;
     } catch (error: any) {
       if (error.response?.status === 204) {
         return null; // No active playback
       }
-      console.error('🚨 SPOTIFY: Failed to get current playback:', error);
+      if (error.response?.status === 429) {
+        // Handle rate limiting
+        const retryAfter = parseInt(error.response.headers['retry-after'] || '3');
+        this.retryAfter = Date.now() + (retryAfter * 1000);
+        console.warn(`⏳ SPOTIFY: Rate limited. Retry after ${retryAfter} seconds`);
+        return null;
+      }
+      console.error('🚨 SPOTIFY: Failed to get current playback:', error.message);
       throw error;
     }
   }
@@ -286,6 +300,25 @@ export class SpotifyService {
   isTokenExpired(tokens: SpotifyTokens): boolean {
     return Date.now() >= tokens.expires_at;
   }
+
+  private async checkRateLimit(): Promise<void> {
+    const now = Date.now();
+    
+    // Check if we're in a retry-after period
+    if (this.retryAfter > now) {
+      const waitTime = this.retryAfter - now;
+      console.log(`⏳ SPOTIFY: Waiting ${waitTime}ms due to rate limit`);
+      await new Promise(resolve => setTimeout(resolve, waitTime));
+    }
+    
+    // Check minimum interval between requests
+    const timeSinceLastRequest = now - this.lastRequestTime;
+    if (timeSinceLastRequest < this.minRequestInterval) {
+      const waitTime = this.minRequestInterval - timeSinceLastRequest;
+      await new Promise(resolve => setTimeout(resolve, waitTime));
+    }
+  }
+
 }
 
 export const createSpotifyService = (clientId: string, clientSecret: string, redirectUri: string): SpotifyService => {
