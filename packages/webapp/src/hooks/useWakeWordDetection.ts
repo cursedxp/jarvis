@@ -269,7 +269,7 @@ export function useWakeWordDetection({
       setIsListening(false)
       isListeningRef.current = false
     }
-  }, [isMounted, isSupported, enabled, isInitialized, lastDetectionTime])
+  }, [isMounted, isSupported])
 
   // Auto-start/stop based on enabled prop (only after initialization)
   useEffect(() => {
