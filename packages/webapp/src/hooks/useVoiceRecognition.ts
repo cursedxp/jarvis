@@ -5,6 +5,7 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 interface UseVoiceRecognitionProps {
   onTranscript: (transcript: string) => void
   onStateChange: (state: 'idle' | 'listening' | 'processing') => void
+  autoStopEnabled?: boolean
 }
 
 interface SpeechRecognitionEvent {
@@ -36,11 +37,15 @@ interface SpeechRecognition {
   stop(): void;
 }
 
-export function useVoiceRecognition({ onTranscript, onStateChange }: UseVoiceRecognitionProps) {
+export function useVoiceRecognition({ onTranscript, onStateChange, autoStopEnabled = false }: UseVoiceRecognitionProps) {
   const [recognition, setRecognition] = useState<SpeechRecognition | null>(null)
   const [isListening, setIsListening] = useState(false)
   const [transcript, setTranscript] = useState('')
+  const [isInitialized, setIsInitialized] = useState(false)
   const finalTranscriptBufferRef = useRef('')
+  const silenceTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
+  const lastSpeechTimeRef = useRef(0)
+  const recognitionInstanceRef = useRef<SpeechRecognition | null>(null)
   
   // Use refs to store stable callback references
   const onTranscriptRef = useRef(onTranscript)
@@ -64,7 +69,7 @@ export function useVoiceRecognition({ onTranscript, onStateChange }: UseVoiceRec
       if (!SpeechRecognitionConstructor) return;
       const recognitionInstance = new SpeechRecognitionConstructor()
       
-      recognitionInstance.continuous = true
+      recognitionInstance.continuous = true // Always use continuous mode
       recognitionInstance.interimResults = true
       recognitionInstance.lang = 'en-US'
       
@@ -76,27 +81,43 @@ export function useVoiceRecognition({ onTranscript, onStateChange }: UseVoiceRec
       
       recognitionInstance.onresult = (event: SpeechRecognitionEvent) => {
         let interimTranscript = ''
+        let hasNewSpeech = false
         
         // Process only new results to avoid duplication
         for (let i = event.resultIndex; i < event.results.length; i++) {
           const transcript = event.results[i][0].transcript
+          
           if (event.results[i].isFinal) {
             finalTranscriptBufferRef.current += transcript + ' '
+            hasNewSpeech = true
           } else {
             interimTranscript = transcript
+            if (transcript.trim()) hasNewSpeech = true
           }
         }
+        
         
         // Update display: show final buffer + current interim
         const displayText = (finalTranscriptBufferRef.current + interimTranscript).trim()
         setTranscript(displayText)
+        
+        // Faster auto-stop: trigger on any final result immediately
+        if (autoStopEnabled && event.results[event.results.length - 1]?.isFinal && finalTranscriptBufferRef.current.trim()) {
+          console.log('🔧 Got final speech result, auto-stopping in 300ms')
+          setTimeout(() => {
+            console.log('🔧 Auto-stopping now')
+            recognitionInstance.stop()
+          }, 300) // Much faster - 300ms instead of 1000ms
+        }
       }
       
       recognitionInstance.onerror = (event: SpeechRecognitionErrorEvent) => {
-        // "no-speech" is a common, non-critical error that happens when no speech is detected
-        // Only log actual errors, not normal timeout events
-        if (event.error !== 'no-speech') {
+        // Filter out common, non-critical errors that are expected during normal operation
+        const ignoredErrors = ['no-speech', 'aborted', 'audio-capture'];
+        if (!ignoredErrors.includes(event.error)) {
           console.error('Speech recognition error:', event.error)
+        } else {
+          console.log('Speech recognition stopped:', event.error, '(normal operation)')
         }
         setIsListening(false)
         onStateChangeRef.current('idle')
@@ -118,17 +139,25 @@ export function useVoiceRecognition({ onTranscript, onStateChange }: UseVoiceRec
         // Clear for next session
         finalTranscriptBufferRef.current = ''
         setTranscript('')
+        
+        // Clear any pending timeout
+        if (silenceTimeoutRef.current) {
+          clearTimeout(silenceTimeoutRef.current)
+          silenceTimeoutRef.current = undefined
+        }
       }
       
       setRecognition(recognitionInstance)
+      setIsInitialized(true)
       console.log('Speech recognition initialized')
     } else {
       console.error('Speech recognition not supported')
+      setIsInitialized(true) // Still mark as "initialized" so UI doesn't wait forever
     }
   }, [recognition])
 
   const startListening = useCallback(() => {
-    if (!recognition) {
+    if (!isInitialized || !recognition) {
       console.error('Recognition not initialized')
       return false
     }
@@ -144,11 +173,17 @@ export function useVoiceRecognition({ onTranscript, onStateChange }: UseVoiceRec
       console.error('Failed to start recognition:', error)
       return false
     }
-  }, [recognition])
+  }, [isInitialized, recognition])
 
   const stopListening = useCallback(() => {
     if (recognition && isListening) {
       recognition.stop()
+    }
+    
+    // Clear any pending timeout
+    if (silenceTimeoutRef.current) {
+      clearTimeout(silenceTimeoutRef.current)
+      silenceTimeoutRef.current = undefined
     }
   }, [recognition, isListening])
 
@@ -156,6 +191,7 @@ export function useVoiceRecognition({ onTranscript, onStateChange }: UseVoiceRec
     isListening,
     transcript,
     startListening,
-    stopListening
+    stopListening,
+    isInitialized
   }
 }

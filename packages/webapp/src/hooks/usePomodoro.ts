@@ -115,15 +115,41 @@ export function usePomodoro({
 
   // Start/resume timer with optional duration
   const startTimer = useCallback((durationMinutes?: number) => {
-    if (phase === 'idle') {
-      const duration = durationMinutes ? durationMinutes * 60 : 25 * 60
-      setPhase('work')
-      setTimeLeft(duration)
-      setTotalTime(duration)
-    }
+    const duration = durationMinutes ? durationMinutes * 60 : 25 * 60
+    console.log(`🍅 WIDGET: Starting work timer with ${durationMinutes || 25} minutes (${duration} seconds), current phase: ${phase}`)
+    
+    // Always reset to work phase and set new duration (regardless of current phase)
+    setPhase('work')
+    setTimeLeft(duration)
+    setTotalTime(duration)
     setIsRunning(true)
     setShowContinuePrompt(false)
-  }, [phase])
+  }, [])
+
+  // Start break timer with specified duration
+  const startBreakTimer = useCallback((durationMinutes?: number) => {
+    const duration = durationMinutes ? durationMinutes * 60 : 5 * 60
+    console.log(`🍅 WIDGET: Starting break timer with ${durationMinutes || 5} minutes (${duration} seconds), current phase: ${phase}`)
+    
+    // Set to break phase and set new duration
+    setPhase('break')
+    setTimeLeft(duration)
+    setTotalTime(duration)
+    setIsRunning(true)
+    setShowContinuePrompt(false)
+  }, [])
+
+  // Reset to work mode (25-minute ready state)
+  const resetToWorkMode = useCallback(() => {
+    console.log(`🍅 WIDGET: Resetting to 25-minute work mode (idle state)`)
+    
+    // Reset to idle state with 25-minute work timer ready
+    setPhase('idle')
+    setTimeLeft(25 * 60)
+    setTotalTime(25 * 60)
+    setIsRunning(false)
+    setShowContinuePrompt(false)
+  }, [])
 
   // Pause timer
   const pauseTimer = useCallback(() => {
@@ -180,6 +206,8 @@ export function usePomodoro({
     showContinuePrompt,
     formattedTime: formatTime(timeLeft),
     startTimer,
+    startBreakTimer,
+    resetToWorkMode,
     pauseTimer,
     resetTimer,
     continueSession,
