@@ -44,7 +44,7 @@ export function SettingsDialog({
   availableVoices,
   onTestVoice,
   onSaveSettings: _onSaveSettings,
-  isSpeaking: _isSpeaking,
+  isSpeaking,
   voiceState: _voiceState,
   wakeWordEnabled,
   onWakeWordEnabledChange,
