@@ -28,6 +28,7 @@ export function FloatingWindow({
   zIndex = 40,
   onFocus
 }: FloatingWindowProps) {
+  // console.log(`🪟 FloatingWindow '${title}' - isOpen:`, isOpen, 'zIndex:', zIndex)
   const [position, setPosition] = useState({ 
     x: defaultX ?? 0, 
     y: defaultY ?? 0

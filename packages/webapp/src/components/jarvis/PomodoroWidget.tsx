@@ -16,6 +16,8 @@ export interface PomodoroWidgetRef {
   continueSession: () => void
   dismissPrompt: () => void
   startTimer: (durationMinutes?: number) => void
+  startBreakTimer: (durationMinutes?: number) => void
+  resetToWorkMode: () => void
   pauseTimer: () => void
   resetTimer: () => void
 }
@@ -30,6 +32,8 @@ export const PomodoroWidget = forwardRef<PomodoroWidgetRef, PomodoroWidgetProps>
     formattedTime,
     showContinuePrompt,
     startTimer,
+    startBreakTimer,
+    resetToWorkMode,
     pauseTimer,
     resetTimer,
     continueSession,
@@ -44,9 +48,11 @@ export const PomodoroWidget = forwardRef<PomodoroWidgetRef, PomodoroWidgetProps>
     continueSession,
     dismissPrompt,
     startTimer,
+    startBreakTimer,
+    resetToWorkMode,
     pauseTimer,
     resetTimer
-  }), [continueSession, dismissPrompt, startTimer, pauseTimer, resetTimer])
+  }), [continueSession, dismissPrompt, startTimer, startBreakTimer, resetToWorkMode, pauseTimer, resetTimer])
 
   // Get colors based on phase
   const getColors = (phase: PomodoroPhase) => {
@@ -118,10 +124,10 @@ export const PomodoroWidget = forwardRef<PomodoroWidgetRef, PomodoroWidgetProps>
             </div>
           ) : (
             <div className="text-center">
-              <div className="text-lg font-mono text-foreground leading-tight mb-1">
+              <div className="text-2xl font-mono text-foreground leading-tight mb-1">
                 {formattedTime}
               </div>
-              <div className="text-xs text-foreground opacity-60 uppercase tracking-wide">
+              <div className="text-sm text-foreground opacity-60 uppercase tracking-wide">
                 {phase}
               </div>
             </div>
@@ -153,11 +159,6 @@ export const PomodoroWidget = forwardRef<PomodoroWidgetRef, PomodoroWidgetProps>
         )}
       </div>
 
-      {/* Phase label */}
-      <div className={`absolute -bottom-6 left-1/2 transform -translate-x-1/2 
-                      text-xs ${colors.text} opacity-60 font-medium whitespace-nowrap`}>
-        {phase === 'break' && 'Break Time'}
-      </div>
 
       {/* Continue Prompt */}
       {showContinuePrompt && (

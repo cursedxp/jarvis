@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider"
 import { Switch } from "@/components/ui/switch"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Volume2, Save, TestTube, Moon, Sun, Monitor } from "lucide-react"
+import { Volume2, Save, TestTube, Moon, Sun, Monitor, Mic } from "lucide-react"
 import { useTheme } from "@/hooks/useTheme"
 
 interface SettingsDialogProps {
@@ -22,6 +22,14 @@ interface SettingsDialogProps {
   onSaveSettings: () => void
   isSpeaking: boolean
   voiceState: string
+  wakeWordEnabled: boolean
+  onWakeWordEnabledChange: (enabled: boolean) => void
+  autoVoiceDetection: boolean
+  onAutoVoiceDetectionChange: (enabled: boolean) => void
+  continuousListening: boolean
+  onContinuousListeningChange: (enabled: boolean) => void
+  microphoneGain: number[]
+  onMicrophoneGainChange: (gain: number[]) => void
 }
 
 export function SettingsDialog({
@@ -37,21 +45,29 @@ export function SettingsDialog({
   onTestVoice,
   onSaveSettings,
   isSpeaking,
-  voiceState
+  voiceState,
+  wakeWordEnabled,
+  onWakeWordEnabledChange,
+  autoVoiceDetection,
+  onAutoVoiceDetectionChange,
+  continuousListening,
+  onContinuousListeningChange,
+  microphoneGain,
+  onMicrophoneGainChange
 }: SettingsDialogProps) {
   const { theme, setTheme } = useTheme()
   
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-popover border-border max-w-2xl">
-        <DialogHeader>
+      <DialogContent className="bg-popover border-border max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle className="text-foreground text-xl">Jarvis Settings</DialogTitle>
           <DialogDescription className="text-muted-foreground">
             Configure your voice assistant preferences
           </DialogDescription>
         </DialogHeader>
         
-        <div className="space-y-6">
+        <div className="flex-1 overflow-y-auto pr-2 space-y-6">
           {/* Theme Settings */}
           <div className="space-y-4">
             <h3 className="text-lg font-medium text-foreground border-b border-border pb-2">
@@ -174,23 +190,15 @@ export function SettingsDialog({
             </div>
 
             {/* Voice Testing */}
-            <div className="flex space-x-2">
+            <div className="flex justify-center">
               <Button 
                 onClick={onTestVoice}
                 disabled={isSpeaking}
                 variant="outline" 
-                className="flex-1 cursor-pointer"
+                className="cursor-pointer"
               >
                 <Volume2 className="w-4 h-4 mr-2" />
                 Test Voice
-              </Button>
-              
-              <Button 
-                onClick={onSaveSettings}
-                className="flex-1 cursor-pointer"
-              >
-                <Save className="w-4 h-4 mr-2" />
-                Save Settings
               </Button>
             </div>
           </div>
@@ -203,23 +211,61 @@ export function SettingsDialog({
             
             <div className="flex items-center justify-between">
               <div>
-                <label className="text-sm font-medium text-foreground">Auto Voice Detection</label>
-                <div className="text-xs text-muted-foreground">Automatically detect when you start/stop speaking</div>
+                <label className="text-sm font-medium text-foreground">Wake Word Detection</label>
+                <div className="text-xs text-muted-foreground">Say "Hey Jarvis" to activate voice mode</div>
               </div>
               <Switch
-                checked={true}
+                checked={wakeWordEnabled}
+                onCheckedChange={onWakeWordEnabledChange}
               />
             </div>
             
-            <div className="flex items-center justify-between">
-              <div>
-                <label className="text-sm font-medium text-foreground">Continuous Listening</label>
-                <div className="text-xs text-muted-foreground">Keep listening after each response</div>
-              </div>
-              <Switch
-                checked={true}
-              />
-            </div>
+            {wakeWordEnabled && (
+              <>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="text-sm font-medium text-foreground">Auto Voice Detection</label>
+                    <div className="text-xs text-muted-foreground">Automatically detect when you start/stop speaking</div>
+                  </div>
+                  <Switch
+                    checked={autoVoiceDetection}
+                    onCheckedChange={onAutoVoiceDetectionChange}
+                  />
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="text-sm font-medium text-foreground">Continuous Listening</label>
+                    <div className="text-xs text-muted-foreground">Keep listening after each response</div>
+                  </div>
+                  <Switch
+                    checked={continuousListening}
+                    onCheckedChange={onContinuousListeningChange}
+                  />
+                </div>
+                
+                {/* Microphone Gain Slider */}
+                <div>
+                  <label className="text-sm font-medium text-foreground mb-3 block flex items-center gap-2">
+                    <Mic className="w-4 h-4" />
+                    Microphone Gain: {microphoneGain?.[0] ?? 2.0}x
+                  </label>
+                  <div className="text-xs text-muted-foreground mb-3">
+                    Boost microphone sensitivity for better wake word detection from distance
+                  </div>
+                  <div className="px-2">
+                    <Slider
+                      value={microphoneGain || [2.0]}
+                      onValueChange={onMicrophoneGainChange}
+                      max={4.0}
+                      min={0.5}
+                      step={0.1}
+                      className="w-full"
+                    />
+                  </div>
+                </div>
+              </>
+            )}
           </div>
 
           {/* Animation Settings */}
@@ -247,6 +293,14 @@ export function SettingsDialog({
                 checked={true}
               />
             </div>
+          </div>
+        </div>
+        
+        {/* Auto-save indicator */}
+        <div className="flex-shrink-0 border-t border-border pt-4 mt-4">
+          <div className="text-center text-sm text-muted-foreground">
+            <Save className="w-4 h-4 inline mr-2" />
+            Settings are automatically saved
           </div>
         </div>
       </DialogContent>
