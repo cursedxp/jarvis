@@ -1,0 +1,3 @@
+# Spec Summary (Lite)
+
+Implement an AI-powered intelligent routing system for Jarvis that automatically determines when to use specific APIs, handlers, and LLM models based on natural language understanding of user intent. This system will enhance response quality by routing requests to the most appropriate handlers while maintaining voice-first interaction performance and supporting the existing multi-LLM architecture. The system replaces keyword-based routing with LLM-powered natural language understanding, enabling users to interact with all Jarvis features using natural speech without needing to know specific command syntax.
