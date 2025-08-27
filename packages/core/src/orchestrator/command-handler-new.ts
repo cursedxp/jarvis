@@ -47,6 +47,23 @@ export class CommandHandler {
     console.log('CommandHandler initialized with modular architecture');
     this.logRegistrationInfo();
   }
+
+  getUserPreferences(): UserPreferenceManager {
+    return this.userPreferences;
+  }
+
+  updateSocketIO(io: any) {
+    this.io = io;
+    // Reinitialize the command registry with the new Socket.IO instance
+    this.commandRegistry = new CommandRegistry(
+      this.orchestrator,
+      this.userPreferences,
+      this.knowledgeBase,
+      this.fineTuningManager,
+      this.io
+    );
+    console.log('📡 COMMAND HANDLER: Socket.IO instance updated in new modular handlers');
+  }
   
   /**
    * Main command handling method - delegates to appropriate handler

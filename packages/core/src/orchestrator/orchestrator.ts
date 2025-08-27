@@ -1,7 +1,7 @@
 import { EventEmitter } from 'eventemitter3';
 import { Logger } from 'winston';
 import { LLMAdapter } from '../adapters/base';
-import { CommandHandler } from './command-handler';
+import { CommandHandler } from './command-handler-new';
 import { ContextManager } from './context-manager';
 import { ModelRegistry } from '../services/model-registry';
 
@@ -41,10 +41,10 @@ export class Orchestrator extends EventEmitter {
     });
   }
   
-  setSocketIO(_io: any) {
-    // Don't create a new CommandHandler, just update the existing one
-    // The CommandHandler should handle Socket.IO updates internally
-    console.log('📡 ORCHESTRATOR: Socket.IO instance set');
+  setSocketIO(io: any) {
+    // Update the Socket.IO instance in the CommandHandler for real-time updates
+    this.commandHandler.updateSocketIO(io);
+    console.log('📡 ORCHESTRATOR: Socket.IO instance set and passed to CommandHandler');
   }
 
   getCommandHandler(): CommandHandler {

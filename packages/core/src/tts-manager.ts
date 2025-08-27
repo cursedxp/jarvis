@@ -5,12 +5,12 @@ const logger = createLogger('tts-manager');
 
 export class TTSManager {
   private useSystemTTS: boolean = false;
-  private currentVoice: string = 'Alex';
+  private currentVoice: string = 'en-US-AriaNeural';
   private socketIO: any = null;
 
   constructor(socketIO?: any) {
-    // Default to browser TTS (system mode)
-    this.useSystemTTS = true;
+    // Default to Edge TTS mode to match frontend settings
+    this.useSystemTTS = false;
     this.socketIO = socketIO;
   }
 
