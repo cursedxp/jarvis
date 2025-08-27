@@ -24,7 +24,7 @@ export function useMicrophoneGain({ gainLevel }: UseMicrophoneGainProps) {
       })
       
       // Create audio context
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
+      const audioContext = new (window.AudioContext || (window as typeof window & { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
       
       // Create gain node
       const gainNode = audioContext.createGain()

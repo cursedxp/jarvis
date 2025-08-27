@@ -11,7 +11,7 @@ export interface MessageHandlerProps {
   setVoiceState: (state: 'idle' | 'listening' | 'processing' | 'speaking') => void
   startAudioLevelSimulation: () => void
   stopAudioLevelSimulation: () => void
-  speakTextViaAPI: (text: string) => Promise<any>
+  speakTextViaAPI: (text: string) => Promise<{ success: boolean; ttsDuration?: number; error?: string }>
 }
 
 export interface MessageHandlerActions {
@@ -174,7 +174,7 @@ export function useMessageHandler({
                 'ms'
               )
             } else {
-              console.error('❌ Edge TTS failed:', ttsResult.message)
+              console.error('❌ Edge TTS failed:', ttsResult.error)
               setVoiceState('idle')
               stopAudioLevelSimulation()
             }

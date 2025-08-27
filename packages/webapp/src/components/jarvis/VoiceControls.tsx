@@ -135,7 +135,7 @@ export function VoiceControls({
         
         {isVoiceEnabled && voiceState === 'listening' && (
           <div className="text-xs text-gray-500 mt-1">
-            Click "Stop & Process" when you finish speaking
+            Click &quot;Stop &amp; Process&quot; when you finish speaking
           </div>
         )}
       </div>

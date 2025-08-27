@@ -211,7 +211,7 @@ export function KanbanWindow({
               <span className="font-medium">Drag & Drop Kanban</span>
             </div>
             <p className="text-blue-300/80 text-sm mt-2">
-              Drag tasks between columns or use voice commands: "move task [name] to [status]"
+              Drag tasks between columns or use voice commands: &quot;move task [name] to [status]&quot;
             </p>
           </div>
 

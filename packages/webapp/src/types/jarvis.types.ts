@@ -113,7 +113,7 @@ export interface PerformanceMetrics {
 // Event Types
 export interface SocketEvent {
   type: string
-  data: any
+  data: unknown
 }
 
 export interface PomodoroEvent {

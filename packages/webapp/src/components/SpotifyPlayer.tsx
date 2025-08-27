@@ -38,7 +38,7 @@ interface PlaybackState {
 interface SpotifyPlayerProps {
   isConnected: boolean;
   onConnect: () => void;
-  onMusicStateUpdate?: (data: any) => void;
+  onMusicStateUpdate?: (data: Record<string, unknown>) => void;
 }
 
 export default function SpotifyPlayer({

@@ -212,7 +212,7 @@ export function SettingsDialog({
             <div className="flex items-center justify-between">
               <div>
                 <label className="text-sm font-medium text-foreground">Wake Word Detection</label>
-                <div className="text-xs text-muted-foreground">Say "Hey Jarvis" to activate voice mode</div>
+                <div className="text-xs text-muted-foreground">Say &quot;Hey Jarvis&quot; to activate voice mode</div>
               </div>
               <Switch
                 checked={wakeWordEnabled}

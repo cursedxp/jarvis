@@ -268,7 +268,7 @@ export default function PlanningClient() {
     <div className="h-full bg-background flex flex-col">
       <div className="flex-1 flex flex-col p-4 overflow-hidden">
         <div className="flex items-center justify-between mb-4">
-          <h1 className="text-2xl font-bold text-foreground">Today's Planning</h1>
+          <h1 className="text-2xl font-bold text-foreground">Today&apos;s Planning</h1>
           <div className="flex items-center gap-4">
             <div className="text-cyan-300">
               {new Date().toLocaleDateString('en-US', {

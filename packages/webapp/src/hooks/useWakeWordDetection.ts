@@ -97,9 +97,10 @@ export function useWakeWordDetection({
       console.log('🔧 Starting speech recognition...')
       recognitionRef.current.start()
       return true
-    } catch (error: any) {
+    } catch (error) {
       // Handle the "already started" error gracefully
-      if (error.name === 'InvalidStateError' && error.message && error.message.includes('already started')) {
+      const err = error as Error & { name: string }
+      if (err.name === 'InvalidStateError' && err.message && err.message.includes('already started')) {
         console.log('🔧 Recognition already started, updating state to match')
         setIsListening(true)
         isListeningRef.current = true
@@ -135,8 +136,8 @@ export function useWakeWordDetection({
     console.log('🔧 WAKE WORD: Multiple instances check - this should only appear once!')
     
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-      const SpeechRecognitionConstructor = (window as any).webkitSpeechRecognition || 
-                                          (window as any).SpeechRecognition
+      const SpeechRecognitionConstructor = (window as typeof window & { webkitSpeechRecognition?: new() => SpeechRecognition; SpeechRecognition?: new() => SpeechRecognition }).webkitSpeechRecognition || 
+                                          (window as typeof window & { webkitSpeechRecognition?: new() => SpeechRecognition; SpeechRecognition?: new() => SpeechRecognition }).SpeechRecognition
       
       if (!SpeechRecognitionConstructor) {
         return
